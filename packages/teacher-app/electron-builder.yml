@@ -1,0 +1,29 @@
+appId: com.networkcontrol.teacher
+productName: NetworkControlTeacher
+copyright: Copyright © 2024
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+extraResources:
+  - from: ../teacher-backend/dist/
+    to: teacher-backend
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: ${productName}-Portable-${version}.exe

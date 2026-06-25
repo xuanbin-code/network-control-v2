@@ -1,0 +1,25 @@
+appId: com.networkcontrol.student
+productName: NetworkControlStudent
+copyright: Copyright © 2024
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+extraResources:
+  - from: ../student-backend/dist/
+    to: student-backend
+    filter:
+      - "**/*"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  runAfterFinish: false

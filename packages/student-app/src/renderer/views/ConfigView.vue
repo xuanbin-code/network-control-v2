@@ -1,98 +1,75 @@
 <template>
-  <div class="config">
-    <el-card class="box-card">
-      <template #header>
-        <span>学生端设置</span>
-      </template>
+  <div class="config-page">
+    <h2>配置</h2>
 
-      <el-form label-width="120px">
-        <el-form-item label="教师端地址">
-          <el-input v-model="form.controller_url" placeholder="ws://192.168.1.100:8765" />
-        </el-form-item>
-        <el-form-item label="上游 DNS">
-          <el-input v-model="form.upstream_dns" placeholder="114.114.114.114" />
-        </el-form-item>
-        <el-form-item label="当前状态">
-          <el-tag :type="statusType">{{ statusText }}</el-tag>
-        </el-form-item>
-        <el-form-item label="连接状态">
-          <el-tag :type="store.status.connected ? 'success' : 'danger'">
-            {{ store.status.connected ? '已连接' : '未连接' }}
-          </el-tag>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="saveConfig">保存配置</el-button>
-          <el-button @click="loadStatus">刷新状态</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <el-form label-width="160px" style="max-width: 600px;">
+      <el-form-item label="教师端 WebSocket">
+        <el-input v-model="form.controller_url" />
+      </el-form-item>
+      <el-form-item label="教师端 HTTP API">
+        <el-input v-model="form.controller_api_url" />
+      </el-form-item>
+      <el-form-item label="上游 DNS">
+        <el-input v-model="form.upstream_dns" />
+      </el-form-item>
+      <el-form-item label="局域网网段">
+        <el-input
+          v-model="lanSubnetsText"
+          type="textarea"
+          :rows="2"
+          placeholder="每行一个网段"
+        />
+      </el-form-item>
+      <el-form-item label="托盘退出密码">
+        <el-input v-model="form.tray_password_hash" />
+      </el-form-item>
+      <el-form-item label="锁屏解锁密码">
+        <el-input v-model="form.unlock_password_hash" />
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="save" :loading="saving">保存配置</el-button>
+      </el-form-item>
+    </el-form>
+
+    <el-alert type="warning" :closable="false" style="margin-top: 20px;">
+      修改配置需要管理员权限才能写入 config.json，保存后建议重启服务生效。
+    </el-alert>
   </div>
 </template>
 
-<script setup>
-import { onMounted, reactive, ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
-import { useAppStore } from '../store/app'
-import { api } from '../api'
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { useStudentStore } from '@/stores/student'
 
-const store = useAppStore()
-const form = reactive({
-  controller_url: '',
-  upstream_dns: '',
+const store = useStudentStore()
+const form = reactive<Record<string, any>>({})
+const lanSubnetsText = ref('')
+const saving = ref(false)
+
+onMounted(async () => {
+  await store.fetchConfig()
+  Object.assign(form, store.config)
+  if (Array.isArray(form.lan_subnets)) {
+    lanSubnetsText.value = form.lan_subnets.join('\n')
+  }
 })
 
-const modeMap = {
-  normal: { text: '正常上网', type: 'success' },
-  whitelist: { text: '白名单', type: 'warning' },
-  blacklist: { text: '黑名单', type: 'info' },
-  disconnect: { text: '已断网', type: 'danger' },
-}
-
-const statusText = computed(() => modeMap[store.status.mode]?.text || store.status.mode)
-const statusType = computed(() => modeMap[store.status.mode]?.type || '')
-
-async function loadStatus() {
-  const res = await api.getStatus()
-  if (res.ok) {
-    store.status = res.data
+async function save() {
+  saving.value = true
+  try {
+    form.lan_subnets = lanSubnetsText.value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean)
+    await store.saveConfig({ ...form })
+  } finally {
+    saving.value = false
   }
 }
-
-async function loadConfig() {
-  const res = await api.getConfig()
-  if (res.ok) {
-    store.config = res.data
-    form.controller_url = res.data.controller_url || ''
-    form.upstream_dns = res.data.upstream_dns || ''
-  }
-}
-
-async function saveConfig() {
-  const res = await api.updateConfig({
-    controller_url: form.controller_url,
-    upstream_dns: form.upstream_dns,
-  })
-  if (res.ok) {
-    ElMessage.success('配置已保存，重启后生效')
-    await loadConfig()
-  } else {
-    ElMessage.error('保存失败')
-  }
-}
-
-onMounted(() => {
-  loadConfig()
-  loadStatus()
-  setInterval(loadStatus, 5000)
-})
 </script>
 
 <style scoped>
-.config {
+.config-page {
   padding: 20px;
-}
-.box-card {
-  max-width: 480px;
-  margin: 0 auto;
 }
 </style>

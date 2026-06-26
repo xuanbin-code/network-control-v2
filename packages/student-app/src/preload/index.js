@@ -1,8 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
+const { contextBridge } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  request: (options) => ipcRenderer.invoke('api:request', options),
-  showLock: () => ipcRenderer.send('lock:show'),
-  hideLock: () => ipcRenderer.send('lock:hide'),
   platform: process.platform,
 })

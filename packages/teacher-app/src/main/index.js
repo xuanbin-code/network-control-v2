@@ -1,23 +1,14 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import path from 'path'
-import { spawn } from 'child_process'
-import { fileURLToPath } from 'url'
+const { app, BrowserWindow } = require('electron')
+const path = require('path')
+const { spawn } = require('child_process')
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-let mainWindow = null
-let backendProcess = null
-
-const BACKEND_PORT = 8771
-const isDev = !app.isPackaged
+let mainWindow
+let backendProcess
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 1000,
-    minHeight: 600,
-    title: 'Network Control 教师端',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -25,64 +16,25 @@ function createWindow() {
     },
   })
 
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173')
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
 }
 
 function startBackend() {
+  const isDev = !!process.env.VITE_DEV_SERVER_URL
   if (isDev) {
-    // 开发模式：假设用户在另一个终端启动了 python -m app.main
-    console.log('[Main] 开发模式：请手动启动 teacher-backend')
     return
   }
-
-  const backendExe = path.join(process.resourcesPath, 'teacher-backend', 'teacher-backend.exe')
-  console.log('[Main] 启动后端:', backendExe)
-
-  backendProcess = spawn(backendExe, [], {
-    cwd: path.dirname(backendExe),
-    stdio: 'ignore',
-    windowsHide: true,
-  })
-
+  const backendPath = path.join(process.resourcesPath, 'teacher-backend', 'teacher-backend.exe')
+  backendProcess = spawn(backendPath, [], { detached: false })
   backendProcess.on('error', (err) => {
-    console.error('[Main] 后端启动失败:', err)
-  })
-
-  backendProcess.on('exit', (code) => {
-    console.log('[Main] 后端退出:', code)
-    backendProcess = null
+    console.error('教师端后端启动失败:', err)
   })
 }
-
-function stopBackend() {
-  if (backendProcess && !backendProcess.killed) {
-    backendProcess.kill()
-  }
-}
-
-// IPC 通信：转发 HTTP 请求到本地后端
-ipcMain.handle('api:request', async (_event, { method, url, data }) => {
-  try {
-    const fullUrl = `http://127.0.0.1:${BACKEND_PORT}${url}`
-    const res = await fetch(fullUrl, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: data ? JSON.stringify(data) : undefined,
-    })
-    return { ok: res.ok, status: res.status, data: await res.json() }
-  } catch (err) {
-    return { ok: false, error: err.message }
-  }
-})
 
 app.whenReady().then(() => {
   startBackend()
@@ -94,10 +46,8 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  stopBackend()
+  if (backendProcess) {
+    backendProcess.kill()
+  }
   if (process.platform !== 'darwin') app.quit()
-})
-
-app.on('will-quit', () => {
-  stopBackend()
 })

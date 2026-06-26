@@ -14,6 +14,8 @@ dist-electron/
 release/
 build/
 *.spec
+!packages/teacher-backend/main.spec
+!packages/student-backend/main.spec
 
 # IDE
 .idea/
@@ -25,6 +27,9 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent workspace
+.agents/
 
 # Runtime data
 *.db

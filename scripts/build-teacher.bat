@@ -1,47 +1,33 @@
 @echo off
 chcp 65001 >nul
-setlocal enabledelayedexpansion
+setlocal
 
-set "ROOT=%~dp0.."
-cd /d "%ROOT%"
+cd /d "%~dp0\.."
 
-:: 使用国内镜像下载 Electron
-set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+echo [1/3] 安装/更新教师端后端依赖...
+cd packages\teacher-backend
+pip install -r requirements.txt
+if errorlevel 1 goto error
 
-echo ========================================
-echo  打包教师端
-echo ========================================
+echo [2/3] 打包教师端后端...
+pyinstaller main.spec --noconfirm
+if errorlevel 1 goto error
 
-:: 1. 打包 Python 后端
-set "BACKEND=%ROOT%\packages\teacher-backend"
-cd /d "%BACKEND%"
+cd ..\teacher-app
 
-if exist dist rmdir /s /q dist
-if exist build rmdir /s /q build
+echo [3/3] 安装教师端前端依赖并打包...
+npm install
+if errorlevel 1 goto error
+npm run build:win
+if errorlevel 1 goto error
 
-python -m pip install -r requirements.txt --quiet
-python -m PyInstaller --noconfirm --onefile --name teacher-backend --console app/main.py
-if errorlevel 1 (
-    echo Python 后端打包失败
-    exit /b 1
-)
+echo 教师端打包完成，产物位于 packages\teacher-app\release
+pause
+goto eof
 
-:: 2. 打包 Electron 前端
-set "APP=%ROOT%\packages\teacher-app"
-cd /d "%APP%"
+:error
+echo 打包失败，请检查错误信息。
+pause
+exit /b 1
 
-call npm install
-if errorlevel 1 (
-    echo npm install 失败
-    exit /b 1
-)
-
-call npm run build:win
-if errorlevel 1 (
-    echo Electron 打包失败
-    exit /b 1
-)
-
-echo ========================================
-echo  教师端打包完成
-echo  产物目录: %APP%\release
+:eof

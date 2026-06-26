@@ -33,7 +33,7 @@ Network Control v2 是一套面向教学机房/局域网场景的“网络访问
 | 前端 UI | Vue 3.4 + TypeScript 5 + Composition API (`<script setup lang="ts">`) |
 | 前端构建 | Vite 5 + `vite-plugin-electron` + `vite-plugin-electron-renderer` |
 | 桌面壳 | Electron 30 |
-| UI 组件库 | Element Plus 2.6 + `@element-plus/icons-vue` |
+| UI 组件库 | shadcn-vue + Reka UI + Tailwind CSS + `@lucide/vue` |
 | 状态管理 | Pinia 2（组合式 Store） |
 | 路由 | Vue Router 4（hash 模式） |
 | 后端服务 | Python 3.10+ + FastAPI + Uvicorn |
@@ -452,6 +452,7 @@ GET      /api/health                  # 健康检查
 
 ## 14. 给 AI 助手的快速参考
 
+- **新增 shadcn-vue 组件**：在两个前端包内分别使用 CLI 安装，例如 `cd packages/teacher-app && npx shadcn-vue@latest add button`。组件统一放在 `src/renderer/components/ui/`。
 - **新增 API**：优先在 `teacher-backend/app/api_server.py` 或 `student-backend/app/api_server.py` 中追加路由，并在对应前端 `api/*.ts` 与 Store 中调用。
 - **新增 WebSocket 消息类型**：在 `packages/shared/protocol.py` 的 `MsgType` 中定义常量，并补充 `msg_*` 辅助函数；两端分别处理收发。
 - **新增网络模式**：修改 `FilterMode`，同步更新 `student-backend/app/filter/network_filter.py` 与教师端前端 UI。

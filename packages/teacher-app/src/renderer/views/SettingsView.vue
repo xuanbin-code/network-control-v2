@@ -1,47 +1,71 @@
 <template>
-  <div class="settings-page">
-    <h2>系统设置</h2>
+  <div class="space-y-6">
+    <h2 class="text-2xl font-bold tracking-tight">系统设置</h2>
 
-    <el-form label-width="160px" style="max-width: 600px;">
-      <el-form-item label="过滤模式">
-        <el-select v-model="form.filter_mode" @change="save('filter_mode')">
-          <el-option label="白名单" value="whitelist" />
-          <el-option label="黑名单" value="blacklist" />
-        </el-select>
-      </el-form-item>
+    <div class="max-w-[600px] space-y-4">
+      <div class="grid grid-cols-[160px_1fr] items-center gap-4">
+        <Label for="filter_mode">过滤模式</Label>
+        <Select v-model="form.filter_mode" @update:model-value="save('filter_mode')">
+          <SelectTrigger id="filter_mode" class="w-[200px]">
+            <SelectValue placeholder="选择过滤模式" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="whitelist">白名单</SelectItem>
+            <SelectItem value="blacklist">黑名单</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <el-form-item label="上游 DNS">
-        <el-input v-model="form.upstream_dns" @blur="save('upstream_dns')" />
-      </el-form-item>
+      <div class="grid grid-cols-[160px_1fr] items-center gap-4">
+        <Label for="upstream_dns">上游 DNS</Label>
+        <Input id="upstream_dns" v-model="form.upstream_dns" @blur="save('upstream_dns')" />
+      </div>
 
-      <el-form-item label="局域网网段">
-        <el-input
+      <div class="grid grid-cols-[160px_1fr] items-start gap-4">
+        <Label for="lan_subnets">局域网网段</Label>
+        <Textarea
+          id="lan_subnets"
           v-model="lanSubnetsText"
-          type="textarea"
           :rows="2"
           placeholder="每行一个网段，如 192.168.1.0/24"
           @blur="saveLanSubnets"
         />
-      </el-form-item>
+      </div>
 
-      <el-form-item label="托盘退出密码">
-        <el-input v-model="form.tray_password_hash" @blur="save('tray_password_hash')" />
-      </el-form-item>
+      <div class="grid grid-cols-[160px_1fr] items-center gap-4">
+        <Label for="tray_password_hash">托盘退出密码</Label>
+        <Input id="tray_password_hash" v-model="form.tray_password_hash" @blur="save('tray_password_hash')" />
+      </div>
 
-      <el-form-item label="锁屏解锁密码">
-        <el-input v-model="form.unlock_password_hash" @blur="save('unlock_password_hash')" />
-      </el-form-item>
-    </el-form>
+      <div class="grid grid-cols-[160px_1fr] items-center gap-4">
+        <Label for="unlock_password_hash">锁屏解锁密码</Label>
+        <Input id="unlock_password_hash" v-model="form.unlock_password_hash" @blur="save('unlock_password_hash')" />
+      </div>
+    </div>
 
-    <el-alert type="info" :closable="false" style="margin-top: 20px;">
-      修改设置后会自动重新下发规则到所有在线学生端。
-    </el-alert>
+    <Alert class="max-w-[600px]">
+      <AlertTitle>提示</AlertTitle>
+      <AlertDescription>
+        修改设置后会自动重新下发规则到所有在线学生端。
+      </AlertDescription>
+    </Alert>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useTeacherStore } from '@/stores/teacher'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const store = useTeacherStore()
 const form = reactive<Record<string, any>>({})
@@ -74,9 +98,3 @@ async function saveLanSubnets() {
   await store.saveSetting('lan_subnets', JSON.stringify(list))
 }
 </script>
-
-<style scoped>
-.settings-page {
-  padding: 20px;
-}
-</style>

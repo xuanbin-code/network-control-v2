@@ -1,45 +1,74 @@
 <template>
-  <div class="status-page">
-    <h2>当前状态</h2>
+  <div class="space-y-6">
+    <h2 class="text-2xl font-bold tracking-tight">当前状态</h2>
 
-    <el-card>
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="连接状态">
-          <el-tag :type="store.status.connected ? 'success' : 'danger'">
-            {{ store.status.connected ? '已连接教师端' : '未连接' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="当前模式">
-          <el-tag :type="modeType" size="large">{{ modeLabel }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="教师端地址">{{ store.status.controller_url || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="本机 IP">{{ store.status.controller_ip || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="主机名">{{ store.status.hostname || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="MAC">{{ store.status.mac || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="规则数量">{{ store.status.rule_count || 0 }}</el-descriptions-item>
-      </el-descriptions>
-    </el-card>
+    <Card>
+      <CardHeader>
+        <CardTitle>运行状态</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl class="grid gap-3 text-sm">
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">连接状态</dt>
+            <dd>
+              <Badge :variant="store.status.connected ? 'default' : 'destructive'">
+                {{ store.status.connected ? '已连接教师端' : '未连接' }}
+              </Badge>
+            </dd>
+          </div>
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">当前模式</dt>
+            <dd>
+              <Badge :variant="modeVariant">{{ modeLabel }}</Badge>
+            </dd>
+          </div>
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">教师端地址</dt>
+            <dd>{{ store.status.controller_url || '-' }}</dd>
+          </div>
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">本机 IP</dt>
+            <dd>{{ store.status.controller_ip || '-' }}</dd>
+          </div>
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">主机名</dt>
+            <dd>{{ store.status.hostname || '-' }}</dd>
+          </div>
+          <div class="flex justify-between border-b py-2">
+            <dt class="text-muted-foreground">MAC</dt>
+            <dd>{{ store.status.mac || '-' }}</dd>
+          </div>
+          <div class="flex justify-between py-2">
+            <dt class="text-muted-foreground">规则数量</dt>
+            <dd>{{ store.status.rule_count || 0 }}</dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
 
-    <el-row :gutter="20" class="actions">
-      <el-col :span="6">
-        <el-button type="success" size="large" @click="store.setMode('normal')">开网</el-button>
-      </el-col>
-      <el-col :span="6">
-        <el-button type="danger" size="large" @click="store.setMode('disconnect')">断网</el-button>
-      </el-col>
-      <el-col :span="6">
-        <el-button type="primary" size="large" @click="store.setMode('whitelist')">白名单</el-button>
-      </el-col>
-      <el-col :span="6">
-        <el-button type="warning" size="large" @click="store.setMode('blacklist')">黑名单</el-button>
-      </el-col>
-    </el-row>
+    <div class="grid grid-cols-4 gap-4">
+      <Button variant="default" size="lg" class="w-full" @click="store.setMode('normal')">
+        开网
+      </Button>
+      <Button variant="destructive" size="lg" class="w-full" @click="store.setMode('disconnect')">
+        断网
+      </Button>
+      <Button variant="secondary" size="lg" class="w-full" @click="store.setMode('whitelist')">
+        白名单
+      </Button>
+      <Button variant="outline" size="lg" class="w-full" @click="store.setMode('blacklist')">
+        黑名单
+      </Button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useStudentStore } from '@/stores/student'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 const store = useStudentStore()
 let timer: number | undefined
@@ -63,25 +92,13 @@ const modeLabel = computed(() => {
   return map[store.status.mode] || store.status.mode
 })
 
-const modeType = computed(() => {
+const modeVariant = computed(() => {
   const map: Record<string, any> = {
-    normal: 'success',
-    whitelist: 'primary',
-    blacklist: 'warning',
-    disconnect: 'danger',
+    normal: 'default',
+    whitelist: 'secondary',
+    blacklist: 'outline',
+    disconnect: 'destructive',
   }
-  return map[store.status.mode] || 'info'
+  return map[store.status.mode] || 'secondary'
 })
 </script>
-
-<style scoped>
-.status-page {
-  padding: 20px;
-}
-.actions {
-  margin-top: 20px;
-}
-.actions .el-button {
-  width: 100%;
-}
-</style>

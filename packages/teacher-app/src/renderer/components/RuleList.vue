@@ -1,33 +1,54 @@
 <template>
-  <div>
-    <el-input
-      v-model="newDomain"
-      placeholder="输入域名，如 example.com 或 *.example.com"
-      style="width: 360px; margin-right: 10px;"
-      @keyup.enter="add"
-    />
-    <el-button type="primary" @click="add" :loading="store.loading">添加</el-button>
+  <div class="space-y-4">
+    <div class="flex items-center gap-3">
+      <Input
+        v-model="newDomain"
+        placeholder="输入域名，如 example.com 或 *.example.com"
+        class="w-[360px]"
+        @keyup.enter="add"
+      />
+      <Button :disabled="store.loading" @click="add">添加</Button>
+    </div>
 
-    <el-table :data="rules" style="width: 100%; margin-top: 16px;" border>
-      <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="domain" label="域名" />
-      <el-table-column prop="enabled" label="启用" width="80">
-        <template #default="{ row }">
-          <el-switch v-model="row.enabled" @change="toggle(row)" />
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="100">
-        <template #default="{ row }">
-          <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead class="w-[60px]">ID</TableHead>
+          <TableHead>域名</TableHead>
+          <TableHead class="w-[100px]">启用</TableHead>
+          <TableHead class="w-[100px]">操作</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="row in rules" :key="row.id">
+          <TableCell>{{ row.id }}</TableCell>
+          <TableCell>{{ row.domain }}</TableCell>
+          <TableCell>
+            <Switch :checked="row.enabled" @update:checked="toggle(row)" />
+          </TableCell>
+          <TableCell>
+            <Button size="sm" variant="destructive" @click="remove(row)">删除</Button>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useTeacherStore } from '@/stores/teacher'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const props = defineProps<{
   listType: string

@@ -1,48 +1,35 @@
 <template>
-  <el-container class="app-container">
-    <el-aside width="180px" class="sidebar">
-      <div class="logo">网络控制 学生端</div>
-      <el-menu
-        :default-active="$route.path"
-        router
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
-      >
-        <el-menu-item index="/">
-          <el-icon><Monitor /></el-icon>
-          <span>状态</span>
-        </el-menu-item>
-        <el-menu-item index="/config">
-          <el-icon><Setting /></el-icon>
-          <span>配置</span>
-        </el-menu-item>
-      </el-menu>
-    </el-aside>
-    <el-main>
-      <router-view />
-    </el-main>
-  </el-container>
+  <div class="flex h-screen bg-background">
+    <aside class="w-[180px] flex flex-col bg-[#304156] text-[#bfcbd9]">
+      <div class="h-[60px] flex items-center justify-center border-b border-[#1f2d3d] text-base font-bold text-white">
+        网络控制 学生端
+      </div>
+      <nav class="flex-1 py-4">
+        <RouterLink
+          v-for="item in menuItems"
+          :key="item.path"
+          :to="item.path"
+          :class="[
+            'flex items-center gap-3 px-6 py-3 text-sm transition-colors hover:text-white',
+            $route.path === item.path ? 'text-[#409EFF] bg-[#263445]' : 'text-[#bfcbd9]',
+          ]"
+        >
+          <component :is="item.icon" class="size-4" />
+          <span>{{ item.label }}</span>
+        </RouterLink>
+      </nav>
+    </aside>
+    <main class="flex-1 overflow-auto p-6">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { Monitor, Setting } from '@element-plus/icons-vue'
-</script>
+import { Monitor, Settings } from '@lucide/vue'
 
-<style scoped>
-.app-container {
-  height: 100vh;
-}
-.sidebar {
-  background-color: #304156;
-}
-.logo {
-  height: 60px;
-  line-height: 60px;
-  text-align: center;
-  color: #fff;
-  font-size: 16px;
-  font-weight: bold;
-  border-bottom: 1px solid #1f2d3d;
-}
-</style>
+const menuItems = [
+  { path: '/', label: '状态', icon: Monitor },
+  { path: '/config', label: '配置', icon: Settings },
+]
+</script>

@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, Menu } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 
@@ -13,6 +13,7 @@ function createWindow() {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      devTools: true,
     },
   })
 
@@ -22,6 +23,66 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
+
+  setupWindowMenu(mainWindow)
+}
+
+function setupWindowMenu(win) {
+  const template = [
+    {
+      label: '视图',
+      submenu: [
+        {
+          label: '重新加载',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            win.webContents.reload()
+          },
+        },
+        {
+          label: '切换开发者工具',
+          accelerator: 'F12',
+          click: () => {
+            win.webContents.toggleDevTools()
+          },
+        },
+        { type: 'separator' },
+        {
+          label: '实际大小',
+          role: 'resetZoom',
+        },
+        {
+          label: '放大',
+          role: 'zoomIn',
+        },
+        {
+          label: '缩小',
+          role: 'zoomOut',
+        },
+        { type: 'separator' },
+        {
+          label: '全屏',
+          role: 'togglefullscreen',
+        },
+      ],
+    },
+    {
+      label: '窗口',
+      submenu: [
+        {
+          label: '最小化',
+          role: 'minimize',
+        },
+        {
+          label: '关闭',
+          role: 'close',
+        },
+      ],
+    },
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 }
 
 function startBackend() {

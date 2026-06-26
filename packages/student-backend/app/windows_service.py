@@ -1,19 +1,22 @@
 """Windows 服务入口
 
 使用 pywin32 注册为系统服务：NetControlAgent
+命令行：
+    python -m app.windows_service install
+    python -m app.windows_service start
+    python -m app.windows_service remove
 """
 
 import os
+import subprocess
 import sys
 import time
-import threading
 
 import win32serviceutil
 import win32service
 import win32event
 import servicemanager
 
-# 兼容 PyInstaller 路径
 if getattr(sys, "frozen", False):
     BASE_DIR = os.path.dirname(sys.executable)
 else:
@@ -25,17 +28,22 @@ if BASE_DIR not in sys.path:
 from app.main import run_agent
 import asyncio
 
+SERVICE_NAME = "NetControlAgent"
+SERVICE_DISPLAY = "网络控制-被控端"
+SERVICE_DESC = "Network Control 学生端网络访问控制代理服务"
+
 
 class NetworkControlAgent(win32serviceutil.ServiceFramework):
-    _svc_name_ = "NetControlAgent"
-    _svc_display_name_ = "Network Control Student Agent"
-    _svc_description_ = "Network Control 学生端网络访问控制代理服务"
+    _svc_name_ = SERVICE_NAME
+    _svc_display_name_ = SERVICE_DISPLAY
+    _svc_description_ = SERVICE_DESC
+    _svc_startType_ = win32service.SERVICE_AUTO_START
+    _svc_deps_ = ["Tcpip", "Dnscache"]
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.loop = None
-        self.thread = None
         self.running = False
 
     def SvcStop(self):
@@ -59,7 +67,8 @@ class NetworkControlAgent(win32serviceutil.ServiceFramework):
         except Exception as e:
             servicemanager.LogErrorMsg(str(e))
         finally:
-            self.loop.close()
+            if self.loop:
+                self.loop.close()
             servicemanager.LogMsg(
                 servicemanager.EVENTLOG_INFORMATION_TYPE,
                 servicemanager.PYS_SERVICE_STOPPED,
@@ -67,16 +76,16 @@ class NetworkControlAgent(win32serviceutil.ServiceFramework):
             )
 
 
-def install_service():
-    win32serviceutil.HandleCommandLine(NetworkControlAgent, argv=[sys.argv[0], "--startup=auto", "install"])
-
-
-def uninstall_service():
-    win32serviceutil.HandleCommandLine(NetworkControlAgent, argv=[sys.argv[0], "remove"])
-
-
-def run_service():
-    win32serviceutil.HandleCommandLine(NetworkControlAgent)
+def _configure_failure_recovery():
+    subprocess.run([
+        "sc", "failure", SERVICE_NAME,
+        "reset=", "86400",
+        "actions=", "restart/30000/restart/30000/restart/30000"
+    ], capture_output=True)
+    subprocess.run([
+        "sc", "config", SERVICE_NAME, "start=", "auto"
+    ], capture_output=True)
+    print("已配置失败自动重启策略 + 开机立即自启（auto）")
 
 
 if __name__ == "__main__":
@@ -86,3 +95,5 @@ if __name__ == "__main__":
         servicemanager.StartServiceCtrlDispatcher()
     else:
         win32serviceutil.HandleCommandLine(NetworkControlAgent)
+        if sys.argv[1].lower() == "install":
+            _configure_failure_recovery()

@@ -6,4 +6,7 @@ pywin32>=306
 python-multipart>=0.0.9
 dnslib>=0.9.23
 psutil>=5.9.0
+pystray>=0.19.5
+Pillow>=10.0.0
+PyQt6>=6.6.0
 pyinstaller>=6.0

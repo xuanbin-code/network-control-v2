@@ -4,10 +4,18 @@
     python -m app.main
 
 服务模式下由 windows_service.py 调用 run_agent()。
+
+命令行：
+    python -m app.main --lock <hash>   # 启动锁屏窗口
 """
 
 import asyncio
+import hashlib
+import logging
+import os
+import re
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -16,17 +24,41 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from .config import CONFIG
-from .ws_client import StudentWebSocketClient
-from .api_server import router as api_router
-from .filter.network_filter import apply_filter_mode
-from .filter.dns_server import DnsFilterServer
-from .state import state
 from shared.protocol import FilterMode
 
+from .config import CONFIG, save_config
+from .ws_client import StudentWebSocketClient, parse_controller_ip
+from .api_server import router as api_router
+from .filter.network_filter import (
+    apply_filter_mode, has_internet_route, reconnect_internet,
+    add_host_routes_dynamic,
+)
+from .filter.dns_server import DnsFilterServer
+from .state import state
+from .tray_icon import AgentTray
+from .network_monitor import NetworkMonitor
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(
+            Path(__file__).resolve().parent.parent / "student-backend.log",
+            encoding="utf-8",
+        ),
+    ],
+)
+logger = logging.getLogger("student-backend")
 
 ws_client = StudentWebSocketClient()
-dns_server = DnsFilterServer(CONFIG.get("upstream_dns", "114.114.114.114"))
+dns_server = DnsFilterServer(
+    upstream_dns=CONFIG.get("upstream_dns", "114.114.114.114"),
+    mode=FilterMode.WHITELIST,
+    on_query=state.on_query_domain,
+    on_resolved_ips=add_host_routes_dynamic,
+)
+ws_client.set_dns_server(dns_server)
 
 
 def create_app() -> FastAPI:
@@ -47,33 +79,85 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-async def run_agent():
-    """启动 WebSocket 客户端、本地 API、DNS 服务等核心逻辑"""
-    # 开机默认断网
+def _boot_lockdown():
+    """开机默认断网（fail-closed），但保留到教师端的路由。"""
+    for _ in range(5):
+        if has_internet_route():
+            break
+        time.sleep(2)
+    controller_ip = parse_controller_ip(CONFIG.get("controller_url", ""))
+    if not controller_ip:
+        logger.warning("controller_url 不是 IP，无法保留教师端路由，断网可能连不回教师端")
+    logger.info("开机默认断网（fail-closed），等待教师端下发上次状态")
     state.set_mode(FilterMode.DISCONNECT)
-    apply_filter_mode(FilterMode.DISCONNECT)
+    try:
+        apply_filter_mode(FilterMode.DISCONNECT, controller_ip=controller_ip)
+    except Exception as e:
+        logger.warning(f"开机断网执行失败（可能需要管理员权限）: {e}")
 
-    dns_server.start()
+
+def _on_exit_confirmed():
+    logger.info("用户通过托盘密码验证，退出程序")
+    apply_filter_mode(FilterMode.NORMAL)
+    os._exit(0)
+
+
+async def run_agent():
+    """启动 WebSocket 客户端、本地 API、DNS 服务、托盘、网络监控等核心逻辑"""
+    tray = AgentTray(
+        password_hash=CONFIG.get("tray_password_hash",
+                                 hashlib.sha256(b"admin123").hexdigest()),
+        visible=CONFIG.get("tray_visible", True),
+        on_exit_confirmed=_on_exit_confirmed,
+    )
+    tray.start()
+
+    monitor = NetworkMonitor(
+        unlock_password_hash=CONFIG.get("unlock_password_hash",
+                                        hashlib.sha256(b"admin123").hexdigest())
+    )
+
+    # 开机即锁网
+    _boot_lockdown()
+
+    try:
+        dns_server.start()
+    except Exception as e:
+        logger.warning(f"DNS 服务器启动失败（可能需要管理员权限）: {e}")
 
     host = CONFIG.get("local_api_host", "127.0.0.1")
     port = CONFIG.get("local_api_port", 8772)
 
-    # 启动本地 API（使用 uvicorn 的 Config + Server 便于与 asyncio 协同）
     config = uvicorn.Config(app, host=host, port=port, log_level="info")
     server = uvicorn.Server(config)
 
-    await asyncio.gather(
-        ws_client.run(),
-        server.serve(),
-    )
+    try:
+        await asyncio.gather(
+            ws_client.run(),
+            server.serve(),
+            monitor.run(),
+        )
+    finally:
+        apply_filter_mode(FilterMode.NORMAL)
+        dns_server.stop()
+        tray.stop()
+        monitor.stop()
 
 
 def main():
+    # 锁屏模式
+    if len(sys.argv) >= 2 and sys.argv[1] == "--lock":
+        hash_val = sys.argv[2] if len(sys.argv) > 2 else hashlib.sha256(b"admin123").hexdigest()
+        from .lock_screen import run_lock_screen
+        run_lock_screen(hash_val)
+        return
+
     try:
         asyncio.run(run_agent())
     except KeyboardInterrupt:
         print("[Student Backend] 用户中断")
     finally:
+        apply_filter_mode(FilterMode.NORMAL)
         dns_server.stop()
         ws_client.stop()
 

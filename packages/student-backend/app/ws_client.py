@@ -2,89 +2,191 @@
 
 import asyncio
 import json
+import logging
 import socket
 import time
+import uuid
 
 import websockets
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from shared.protocol import MsgType, FilterMode
+from shared.protocol import (
+    MsgType, FilterMode,
+    msg_register, msg_heartbeat, msg_status, msg_ack,
+    msg_browsing_update, parse_msg, extract_payload,
+)
 
 from .config import CONFIG
 from .state import state
+
+logger = logging.getLogger("ws_client")
+
+HEARTBEAT_INTERVAL = 20
+RECONNECT_DELAY = 5
+BROWSING_INTERVAL = 15
+
+
+def get_local_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def get_mac() -> str:
+    mac = uuid.getnode()
+    return ":".join(f"{(mac >> i) & 0xff:02x}" for i in range(40, -1, -8))
+
+
+def parse_controller_ip(url: str) -> str:
+    """从 ws://ip:port 中解析 IP，用于断网时保留教师端路由。"""
+    import re
+    import ipaddress
+    m = re.match(r"wss?://([^:/]+)", url)
+    host = m.group(1) if m else ""
+    try:
+        ipaddress.ip_address(host)
+        return host
+    except ValueError:
+        return ""
 
 
 class StudentWebSocketClient:
     def __init__(self):
         self.uri = CONFIG.get("controller_url", "ws://192.168.1.100:8765")
+        # 兼容：若 url 没有路径，追加 /ws（当前 v2 后端使用 FastAPI /ws 路由）
+        if not self.uri.rstrip('/').endswith('/ws'):
+            self.uri = self.uri.rstrip('/') + '/ws'
         self.ws = None
         self.running = False
-        self.reconnect_interval = 5
+        self.reconnect_interval = RECONNECT_DELAY
+        self._filter_handler = None
+        self._dns_server = None
+
+    def set_filter_handler(self, handler):
+        self._filter_handler = handler
+
+    def set_dns_server(self, dns_server):
+        self._dns_server = dns_server
 
     async def run(self):
         self.running = True
         while self.running:
             try:
-                print(f"[WS Client] 连接教师端: {self.uri}")
-                async with websockets.connect(self.uri) as ws:
+                logger.info(f"连接教师端: {self.uri}")
+                async with websockets.connect(self.uri, ping_interval=None) as ws:
                     self.ws = ws
                     state.connected = True
+                    state.controller_url = self.uri
+                    state.controller_ip = parse_controller_ip(self.uri)
+                    state.hostname = socket.gethostname()
+                    state.mac = get_mac()
+                    logger.info("已连接教师端")
                     await self._register()
                     await self._recv_loop()
             except Exception as e:
-                print(f"[WS Client] 连接异常: {e}")
+                logger.warning(f"连接异常: {e}")
             finally:
-                state.connected = False
                 self.ws = None
+                state.connected = False
             if self.running:
-                print(f"[WS Client] {self.reconnect_interval}秒后重连...")
+                logger.info(f"{self.reconnect_interval}秒后重连...")
                 await asyncio.sleep(self.reconnect_interval)
 
     async def _register(self):
-        hostname = socket.gethostname()
-        await self.send({
-            "type": MsgType.REGISTER,
-            "payload": {
-                "hostname": hostname,
-                "mac": "",
-                "mode": state.mode,
-            },
-        })
+        await self.send(msg_register(
+            hostname=state.hostname,
+            ip=get_local_ip(),
+            mac=state.mac,
+            mode=state.mode,
+        ))
 
     async def _recv_loop(self):
         heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        browsing_task = asyncio.create_task(self._browsing_loop())
         try:
             async for message in self.ws:
                 await self._handle_message(json.loads(message))
         finally:
             heartbeat_task.cancel()
+            browsing_task.cancel()
             try:
                 await heartbeat_task
+                await browsing_task
             except asyncio.CancelledError:
                 pass
 
     async def _heartbeat_loop(self):
         while True:
-            await asyncio.sleep(20)
-            await self.send({
-                "type": MsgType.HEARTBEAT,
-                "payload": {"mode": state.mode},
-            })
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+            try:
+                await self.send(msg_heartbeat(
+                    filter_active=state.filter_active,
+                    net_state=state.mode,
+                ))
+            except Exception:
+                break
+
+    async def _browsing_loop(self):
+        while True:
+            await asyncio.sleep(BROWSING_INTERVAL)
+            try:
+                domains = state.get_recent_domains()
+                if domains:
+                    await self.send(msg_browsing_update(domains))
+            except Exception:
+                break
 
     async def _handle_message(self, data: dict):
         msg_type = data.get("type")
-        payload = data.get("payload", {})
-        print(f"[WS Client] 收到: {msg_type} {payload}")
+        payload = extract_payload(data)
+        logger.debug(f"收到: {msg_type} {payload}")
 
         if msg_type == MsgType.SET_FILTER:
             mode = payload.get("mode", FilterMode.NORMAL)
+            enabled = payload.get("enabled", True)
+            if not enabled:
+                mode = FilterMode.NORMAL
             await self._apply_mode(mode)
 
         elif msg_type == MsgType.UPDATE_RULES:
-            # 保存规则并应用（后续由 filter 模块处理）
-            pass
+            domains = payload.get("domains", [])
+            mode = payload.get("mode", FilterMode.WHITELIST)
+            state.lan_subnets = payload.get("lan_subnets", state.lan_subnets)
+            state.controller_ip = payload.get("controller_ip", state.controller_ip)
+            state.upstream_dns = payload.get("upstream_dns", state.upstream_dns)
+
+            if mode == FilterMode.WHITELIST:
+                state.whitelist_domains = domains
+            else:
+                state.blacklist_domains = domains
+            state.rule_count = len(domains)
+
+            # 更新密码
+            tray_pwd_hash = payload.get("tray_pwd_hash", "")
+            unlock_pwd_hash = payload.get("unlock_pwd_hash", "")
+            if tray_pwd_hash:
+                CONFIG["tray_password_hash"] = tray_pwd_hash
+            if unlock_pwd_hash:
+                CONFIG["unlock_password_hash"] = unlock_pwd_hash
+            if tray_pwd_hash or unlock_pwd_hash:
+                from .config import save_config
+                save_config(CONFIG)
+
+            # 热更新 DNS 规则
+            if self._dns_server and self._dns_server.running:
+                self._dns_server.set_mode(mode)
+                self._dns_server.update_domains(domains)
+                self._dns_server.update_upstream(state.upstream_dns)
+
+            await self.send(msg_ack(True, "规则已应用"))
 
         elif msg_type == MsgType.DISCONNECT:
             await self._apply_mode(FilterMode.DISCONNECT)
@@ -92,21 +194,55 @@ class StudentWebSocketClient:
         elif msg_type == MsgType.RECONNECT:
             await self._apply_mode(FilterMode.NORMAL)
 
+        elif msg_type == MsgType.GET_STATUS:
+            await self.send(msg_status(
+                filter_active=state.filter_active,
+                dns_running=self._dns_server.running if self._dns_server else False,
+                rule_count=state.rule_count,
+                net_state=state.mode,
+            ))
+
     async def _apply_mode(self, mode: str):
         from .filter.network_filter import apply_filter_mode
         state.set_mode(mode)
-        apply_filter_mode(mode)
-        await self.send({
-            "type": MsgType.STATUS,
-            "payload": {"mode": mode},
-        })
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            apply_filter_mode,
+            mode,
+            state.whitelist_domains,
+            state.blacklist_domains,
+            state.lan_subnets,
+            state.controller_ip,
+            state.upstream_dns,
+        )
+        # 黑名单模式需要本地 DNS 在过滤状态
+        if self._dns_server and self._dns_server.running:
+            self._dns_server.set_mode(mode)
+        await self.send(msg_status(
+            filter_active=state.filter_active,
+            dns_running=self._dns_server.running if self._dns_server else False,
+            rule_count=state.rule_count,
+            net_state=state.mode,
+        ))
 
-    async def send(self, msg: dict):
-        if self.ws and self.ws.open:
+    async def send(self, msg: str):
+        if self.ws and self._is_open(self.ws):
             try:
-                await self.ws.send(json.dumps(msg))
+                await self.ws.send(msg)
             except Exception as e:
-                print(f"[WS Client] 发送失败: {e}")
+                logger.warning(f"发送失败: {e}")
+
+    @staticmethod
+    def _is_open(ws) -> bool:
+        try:
+            return ws.open
+        except AttributeError:
+            pass
+        try:
+            import websockets
+            return ws.state == websockets.protocol.State.OPEN
+        except Exception:
+            return False
 
     def stop(self):
         self.running = False

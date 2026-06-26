@@ -54,6 +54,9 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('heartbeat_interval', '20');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('heartbeat_timeout', '60');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('lan_subnets', '{_default_lan_subnets()}');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('upstream_dns', '114.114.114.114');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('filter_mode', 'whitelist');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('tray_password_hash', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('unlock_password_hash', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9');
 """
 
 

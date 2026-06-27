@@ -1,60 +1,74 @@
-# Network Control v2 - 教师端开发启动脚本
-# 仅启动教师端后端 + 教师端前端
+﻿# Network Control v2 - Teacher Dev Start
+# Launches teacher-backend + teacher-app only
 
 $ErrorActionPreference = "Continue"
 chcp 65001 > $null
 
+# --- Port cleanup -------------------------------------------------
+$ports = @(8765, 8770, 8771, 5173)
+Write-Host "Checking ports..." -ForegroundColor DarkGray
+
+foreach ($port in $ports) {
+    $conn = netstat -ano 2>$null | Select-String "LISTENING.*:${port}\b"
+    if ($conn) {
+        $pidStr = ($conn -split '\s+')[-1]
+        if ($pidStr -match '^\d+$') {
+            Write-Host "  Port ${port} occupied by PID ${pidStr} - killing..." -ForegroundColor Yellow
+            taskkill /PID $pidStr /F 2>$null | Out-Null
+            Start-Sleep -Milliseconds 500
+        }
+    }
+}
+Write-Host "Ports cleared." -ForegroundColor DarkGray
+Write-Host ""
+
+# --- Paths --------------------------------------------------------
 $root = Split-Path -Parent $PSScriptRoot
 $teacherBackend = Join-Path $root "packages/teacher-backend"
 $teacherApp     = Join-Path $root "packages/teacher-app"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host " Network Control v2 - 教师端开发环境 " -ForegroundColor Cyan
+Write-Host " Network Control v2 - Teacher Dev Mode " -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " 教师端后端 : http://127.0.0.1:8771" -ForegroundColor Green
-Write-Host " 教师端前端 : http://127.0.0.1:5173" -ForegroundColor Green
-Write-Host " WebSocket  : ws://0.0.0.0:8765"    -ForegroundColor Green
+Write-Host " Teacher Backend : http://127.0.0.1:8771" -ForegroundColor Green
+Write-Host " Teacher Frontend: http://127.0.0.1:5173" -ForegroundColor Green
+Write-Host " WebSocket       : ws://0.0.0.0:8765"    -ForegroundColor Green
 Write-Host ""
-Write-Host " 按 Ctrl+C 停止全部服务" -ForegroundColor Yellow
+Write-Host " Press Ctrl+C to stop backend" -ForegroundColor Yellow
 Write-Host ""
 
-$jobs = @()
-
-# 教师端后端
-$jobs += Start-Job -Name "[teacher-backend]" -ScriptBlock {
+# --- Backend: background job --------------------------------------
+$backendJob = Start-Job -Name "[backend]" -ScriptBlock {
     param($dir)
     Set-Location $dir
     & python -m app.main
 } -ArgumentList $teacherBackend
 
-# 教师端前端
-$jobs += Start-Job -Name "[teacher-app]" -ScriptBlock {
-    param($dir)
-    Set-Location $dir
-    & npm run dev
-} -ArgumentList $teacherApp
+# --- Frontend: new window for Electron ----------------------------
+$frontendProc = Start-Process -FilePath "powershell" -ArgumentList (
+    "-NoExit", "-Command",
+    "chcp 65001 > `$null; Set-Location '$teacherApp'; npm run dev"
+) -PassThru
 
-# 持续输出日志
+# --- Monitor backend logs -----------------------------------------
 try {
-    while ($true) {
-        foreach ($job in $jobs) {
-            if ($job.HasMoreData) {
-                $output = Receive-Job -Job $job
-                if ($output) {
-                    Write-Host "$($job.Name) $output"
-                }
-            }
+    while ($backendJob.State -ne 'Completed' -and $backendJob.State -ne 'Failed') {
+        if ($backendJob.HasMoreData) {
+            $output = Receive-Job -Job $backendJob
+            if ($output) { Write-Host "[backend] $output" }
         }
         Start-Sleep -Milliseconds 200
     }
+    Receive-Job -Job $backendJob | ForEach-Object { Write-Host "[backend] $_" }
 }
 finally {
     Write-Host ""
-    Write-Host "正在停止教师端服务..." -ForegroundColor Yellow
-    foreach ($job in $jobs) {
-        Stop-Job -Job $job -ErrorAction SilentlyContinue
-        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    Write-Host "Stopping..." -ForegroundColor Yellow
+    Stop-Job -Job $backendJob -ErrorAction SilentlyContinue
+    Remove-Job -Job $backendJob -Force -ErrorAction SilentlyContinue
+    if ($frontendProc -and !$frontendProc.HasExited) {
+        $frontendProc.Kill()
     }
-    Write-Host "已停止。" -ForegroundColor Cyan
+    Write-Host "All stopped." -ForegroundColor Cyan
 }

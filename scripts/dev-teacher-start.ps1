@@ -1,4 +1,4 @@
-﻿# Network Control v2 - Teacher Dev Start
+﻿﻿# Network Control v2 - Teacher Dev Start
 # Launches teacher-backend + teacher-app only
 
 $ErrorActionPreference = "Continue"
@@ -8,21 +8,21 @@ chcp 65001 > $null
 $ports = @(8765, 8770, 8771, 5173)
 Write-Host "Checking ports..." -ForegroundColor DarkGray
 
-$killedPids = @{}
+$killedIds = @{}
 foreach ($port in $ports) {
     $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     foreach ($c in $conns) {
-        $pid = $c.OwningProcess
-        if ($pid -eq 0) { continue }
-        if ($killedPids.ContainsKey($pid)) { continue }
-        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        $procId = $c.OwningProcess
+        if ($procId -eq 0) { continue }
+        if ($killedIds.ContainsKey($procId)) { continue }
+        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
         if (-not $proc) { continue }
-        Write-Host "  Port ${port} occupied by ${pid} ($($proc.ProcessName)) - killing..." -ForegroundColor Yellow
-        taskkill /PID $pid /F 2>$null | Out-Null
-        $killedPids[$pid] = $true
+        Write-Host "  Port ${port} occupied by ${procId} ($($proc.ProcessName)) - killing..." -ForegroundColor Yellow
+        taskkill /PID $procId /F 2>$null | Out-Null
+        $killedIds[$procId] = $true
     }
 }
-if ($killedPids.Count -gt 0) {
+if ($killedIds.Count -gt 0) {
     Write-Host "  Waiting for ports to release..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 2
 }

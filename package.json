@@ -8,6 +8,7 @@
     "dev:student": "cd packages/student-app && npm run dev",
     "dev:teacher-backend": "cd packages/teacher-backend && python -m app.main",
     "dev:student-backend": "cd packages/student-backend && python -m app.main",
+    "dev:teach": "powershell -ExecutionPolicy Bypass -File scripts/dev-teacher-start.ps1",
     "build:teacher": "scripts/build-teacher.bat",
     "build:student": "scripts/build-student.bat"
   },

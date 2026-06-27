@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from shared.protocol import (
     MsgType, FilterMode,
-    msg_update_rules, msg_set_filter,
+    msg_update_rules, msg_set_filter, msg_test_message,
     parse_msg, extract_payload,
 )
 
@@ -155,6 +155,10 @@ class WsManager:
             tray_pwd_hash=payload.get("tray_pwd_hash", ""),
             unlock_pwd_hash=payload.get("unlock_pwd_hash", ""),
         ), targets=targets)
+
+    async def send_test_message(self, message: str, targets: Optional[list] = None):
+        """向指定学生端（或全部）发送测试消息"""
+        await self.broadcast(msg_test_message(content=message), targets=targets)
 
     async def set_filter(self, mode: str, targets: Optional[list] = None):
         enabled = mode != FilterMode.NORMAL

@@ -13,6 +13,19 @@ async def health():
     return {"status": "ok", "connected": state.connected, "mode": state.mode}
 
 
+@router.get("/test_message")
+async def get_test_message():
+    """获取最近一条教师端发来的测试消息"""
+    import time
+    return {
+        "message": state.last_test_message,
+        "ts": state.last_test_message_ts,
+        "time_str": time.strftime("%Y-%m-%d %H:%M:%S",
+                                   time.localtime(state.last_test_message_ts))
+        if state.last_test_message_ts else "",
+    }
+
+
 @router.get("/status")
 async def get_status():
     return {

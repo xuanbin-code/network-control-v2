@@ -22,6 +22,8 @@ class AgentState:
         self.blacklist_domains: list[str] = []
         self.lan_subnets: list[str] = []
         self.upstream_dns = "114.114.114.114"
+        self.last_test_message = ""
+        self.last_test_message_ts = 0.0
         self._recent_domains: collections.deque = collections.deque(maxlen=50)
         self._domains_lock = threading.Lock()
 

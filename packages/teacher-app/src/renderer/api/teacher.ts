@@ -71,3 +71,12 @@ export async function scanNetwork(subnet: string) {
   const res = await instance.get('/scan', { params: { subnet } })
   return res.data
 }
+
+export async function sendTestMessage(message: string, targets?: string[]) {
+  return instance.post('/test/send', { message, targets })
+}
+
+export async function getServerInfo() {
+  const res = await instance.get('/server_info')
+  return res.data
+}

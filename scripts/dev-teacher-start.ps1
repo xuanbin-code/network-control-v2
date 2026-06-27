@@ -8,18 +8,25 @@ chcp 65001 > $null
 $ports = @(8765, 8770, 8771, 5173)
 Write-Host "Checking ports..." -ForegroundColor DarkGray
 
+$killedPids = @{}
 foreach ($port in $ports) {
-    $conn = netstat -ano 2>$null | Select-String "LISTENING.*:${port}\b"
-    if ($conn) {
-        $pidStr = ($conn -split '\s+')[-1]
-        if ($pidStr -match '^\d+$') {
-            Write-Host "  Port ${port} occupied by PID ${pidStr} - killing..." -ForegroundColor Yellow
-            taskkill /PID $pidStr /F 2>$null | Out-Null
-            Start-Sleep -Milliseconds 500
-        }
+    $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    foreach ($c in $conns) {
+        $pid = $c.OwningProcess
+        if ($pid -eq 0) { continue }
+        if ($killedPids.ContainsKey($pid)) { continue }
+        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if (-not $proc) { continue }
+        Write-Host "  Port ${port} occupied by ${pid} ($($proc.ProcessName)) - killing..." -ForegroundColor Yellow
+        taskkill /PID $pid /F 2>$null | Out-Null
+        $killedPids[$pid] = $true
     }
 }
-Write-Host "Ports cleared." -ForegroundColor DarkGray
+if ($killedPids.Count -gt 0) {
+    Write-Host "  Waiting for ports to release..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 2
+}
+Write-Host "Ports ready." -ForegroundColor DarkGray
 Write-Host ""
 
 # --- Paths --------------------------------------------------------

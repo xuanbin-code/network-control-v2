@@ -34,9 +34,15 @@
       </div>
       <div class="grid grid-cols-[160px_1fr] items-center gap-4">
         <div />
-        <Button :disabled="saving" @click="save">
-          {{ saving ? '保存中...' : '保存配置' }}
-        </Button>
+        <div class="flex items-center gap-3">
+          <Button :disabled="saving" @click="save">
+            {{ saving ? '保存中...' : '保存配置' }}
+          </Button>
+          <Button variant="outline" :disabled="reloading" @click="reload">
+            {{ reloading ? '加载中...' : '重新加载配置' }}
+          </Button>
+          <span v-if="reloadMsg" class="text-sm text-green-600">{{ reloadMsg }}</span>
+        </div>
       </div>
     </div>
 
@@ -62,6 +68,8 @@ const store = useStudentStore()
 const form = reactive<Record<string, any>>({})
 const lanSubnetsText = ref('')
 const saving = ref(false)
+const reloading = ref(false)
+const reloadMsg = ref('')
 
 onMounted(async () => {
   await store.fetchConfig()
@@ -70,6 +78,23 @@ onMounted(async () => {
     lanSubnetsText.value = form.lan_subnets.join('\n')
   }
 })
+
+async function reload() {
+  reloading.value = true
+  reloadMsg.value = ''
+  try {
+    await store.refreshConfig()
+    Object.assign(form, store.config)
+    if (Array.isArray(form.lan_subnets)) {
+      lanSubnetsText.value = form.lan_subnets.join('\n')
+    }
+    reloadMsg.value = '已重新加载'
+  } catch (e) {
+    reloadMsg.value = '加载失败'
+  } finally {
+    reloading.value = false
+  }
+}
 
 async function save() {
   saving.value = true

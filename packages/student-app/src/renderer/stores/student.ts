@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getStatus, getConfig, updateConfig, applyMode } from '@/api/student'
+import { getStatus, getConfig, updateConfig, applyMode, reloadConfig } from '@/api/student'
 
 export const useStudentStore = defineStore('student', () => {
   const status = ref<Record<string, any>>({})
@@ -24,8 +24,14 @@ export const useStudentStore = defineStore('student', () => {
     await fetchStatus()
   }
 
+  async function refreshConfig() {
+    const data = await reloadConfig()
+    config.value = data.config || {}
+    return data
+  }
+
   return {
     status, config,
-    fetchStatus, fetchConfig, saveConfig, setMode,
+    fetchStatus, fetchConfig, saveConfig, setMode, refreshConfig,
   }
 })

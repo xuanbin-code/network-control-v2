@@ -155,6 +155,12 @@ function startBackend() {
 }
 
 app.whenReady().then(async () => {
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+
   startBackend()
 
   if (backendProcess) {
@@ -165,12 +171,6 @@ app.whenReady().then(async () => {
       console.error('[Dev] 等待后端就绪失败:', err.message)
     }
   }
-
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
 })
 
 app.on('window-all-closed', () => {

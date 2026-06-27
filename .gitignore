@@ -37,6 +37,10 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Student backend runtime files
+packages/student-backend/config.json
+packages/student-backend/gw_backup.json
+
 # Python egg metadata
 *.egg-info/
 .eggs/

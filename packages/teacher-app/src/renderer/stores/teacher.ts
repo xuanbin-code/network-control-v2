@@ -4,13 +4,14 @@ import {
   getMachines, getRules, getSettings, scanNetwork,
   setNetwork, enableNetwork, disableNetwork, enableIp, disableIp,
   addRule, deleteRule, toggleRule, updateSetting,
-  sendTestMessage,
+  sendTestMessage, getServerInfo,
 } from '@/api/teacher'
 
 export const useTeacherStore = defineStore('teacher', () => {
   const machines = ref<any[]>([])
   const rules = ref({ whitelist: [], blacklist: [] })
   const settings = ref<Record<string, any>>({})
+  const serverInfo = ref({ ip: '', ws_url: '', ws_port: 0 })
   const loading = ref(false)
 
   async function fetchMachines() {
@@ -23,6 +24,10 @@ export const useTeacherStore = defineStore('teacher', () => {
 
   async function fetchSettings() {
     settings.value = await getSettings()
+  }
+
+  async function fetchServerInfo() {
+    serverInfo.value = await getServerInfo()
   }
 
   async function setMode(mode: string, targets?: string[]) {
@@ -81,8 +86,8 @@ export const useTeacherStore = defineStore('teacher', () => {
   }
 
   return {
-    machines, rules, settings, loading,
-    fetchMachines, fetchRules, fetchSettings,
+    machines, rules, settings, serverInfo, loading,
+    fetchMachines, fetchRules, fetchSettings, fetchServerInfo,
     setMode, enableAll, disableAll, enableSingle, disableSingle,
     createRule, removeRule, switchRule, saveSetting, scanSubnet,
     testMessage,

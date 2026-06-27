@@ -2,6 +2,17 @@
   <div class="space-y-6">
     <h2 class="text-2xl font-bold tracking-tight">控制面板</h2>
 
+    <div class="flex items-center gap-6 rounded-lg border bg-card p-4 text-sm">
+      <div class="flex items-center gap-2">
+        <span class="text-muted-foreground">本机 IP</span>
+        <Badge variant="default">{{ store.serverInfo.ip || '获取中...' }}</Badge>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-muted-foreground">WebSocket 地址</span>
+        <code class="rounded bg-muted px-2 py-0.5 text-xs">{{ store.serverInfo.ws_url || '获取中...' }}</code>
+      </div>
+    </div>
+
     <div class="grid grid-cols-4 gap-4">
       <Button variant="default" size="lg" class="w-full" :disabled="store.loading" @click="store.enableAll">
         全部开网
@@ -153,6 +164,7 @@ const sending = ref(false)
 let timer: number | undefined
 
 onMounted(() => {
+  store.fetchServerInfo()
   store.fetchMachines()
   timer = window.setInterval(() => store.fetchMachines(), 3000)
 })

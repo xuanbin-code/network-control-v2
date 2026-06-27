@@ -14,6 +14,7 @@ from shared.protocol import MsgType, FilterMode
 from .db import get_db
 from .ws_server import ws_manager
 from .scanner import scan_ip_range
+from .config import WS_PORT
 
 
 router = APIRouter(prefix="/api")
@@ -41,6 +42,17 @@ class TestMessageRequest(BaseModel):
 @router.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@router.get("/server_info")
+async def server_info():
+    """返回教师端 IP 和 WebSocket 地址"""
+    local_ip = ws_manager._get_local_ip()
+    return {
+        "ip": local_ip,
+        "ws_url": f"ws://{local_ip}:{WS_PORT}/ws",
+        "ws_port": WS_PORT,
+    }
 
 
 @router.get("/machines")

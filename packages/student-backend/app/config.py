@@ -14,8 +14,8 @@ else:
 CONFIG_PATH = BASE_DIR / "config.json"
 
 DEFAULT_CONFIG = {
-    "controller_url": "ws://10.167.225.191:8765/ws",
-    "controller_api_url": "http://10.167.225.191:8770",
+    "controller_url": "ws://192.168.1.100:8765/ws",
+    "controller_api_url": "http://192.168.1.100:8770",
     "local_api_host": "127.0.0.1",
     "local_api_port": 8772,
     "upstream_dns": "114.114.114.114",

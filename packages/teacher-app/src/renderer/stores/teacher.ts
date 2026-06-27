@@ -4,6 +4,7 @@ import {
   getMachines, getRules, getSettings, scanNetwork,
   setNetwork, enableNetwork, disableNetwork, enableIp, disableIp,
   addRule, deleteRule, toggleRule, updateSetting,
+  sendTestMessage,
 } from '@/api/teacher'
 
 export const useTeacherStore = defineStore('teacher', () => {
@@ -75,10 +76,15 @@ export const useTeacherStore = defineStore('teacher', () => {
     return scanNetwork(subnet)
   }
 
+  async function testMessage(message: string, targets?: string[]) {
+    await sendTestMessage(message, targets)
+  }
+
   return {
     machines, rules, settings, loading,
     fetchMachines, fetchRules, fetchSettings,
     setMode, enableAll, disableAll, enableSingle, disableSingle,
     createRule, removeRule, switchRule, saveSetting, scanSubnet,
+    testMessage,
   }
 })

@@ -21,6 +21,7 @@ class MsgType:
     DISCONNECT = "disconnect"
     RECONNECT = "reconnect"
     GET_STATUS = "get_status"
+    TEST_MESSAGE = "test_message"
 
 
 class FilterMode:
@@ -147,3 +148,10 @@ def msg_reconnect() -> str:
 
 def msg_get_status() -> str:
     return make_msg(MsgType.GET_STATUS)
+
+
+def msg_test_message(content: str) -> str:
+    """教师端发送测试消息到学生端"""
+    return make_msg(MsgType.TEST_MESSAGE, payload={
+        "content": content,
+    })

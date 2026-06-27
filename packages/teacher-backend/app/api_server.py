@@ -33,6 +33,11 @@ class SettingUpdateRequest(BaseModel):
     value: str
 
 
+class TestMessageRequest(BaseModel):
+    message: str
+    targets: Optional[List[str]] = None
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok"}
@@ -199,6 +204,17 @@ async def update_setting(req: SettingUpdateRequest):
     if req.key in ("filter_mode", "lan_subnets", "upstream_dns"):
         await ws_manager.push_rules()
     return {"ok": True}
+
+
+@router.post("/test/send")
+async def send_test_message(req: TestMessageRequest):
+    """向学生端发送测试消息"""
+    await ws_manager.send_test_message(req.message, targets=req.targets or None)
+    return {
+        "ok": True,
+        "message": req.message,
+        "targets": req.targets or "all",
+    }
 
 
 async def _build_rules_payload() -> dict:

@@ -60,6 +60,7 @@
               <Button size="sm" variant="destructive" @click="store.disableSingle(row.ip)">断网</Button>
               <Button size="sm" variant="secondary" @click="store.setMode('whitelist', [row.ip])">白名单</Button>
               <Button size="sm" variant="outline" @click="store.setMode('blacklist', [row.ip])">黑名单</Button>
+              <Button size="sm" variant="ghost" @click="openTestDialog(row.ip)">测试</Button>
             </div>
           </TableCell>
         </TableRow>
@@ -77,6 +78,38 @@
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog v-model:open="testVisible">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>发送测试消息</DialogTitle>
+          <DialogDescription v-if="testTargetIp">
+            目标: {{ testTargetIp }}
+          </DialogDescription>
+          <DialogDescription v-else>
+            目标: 全部在线学生端
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div>
+            <Label for="test-message">消息内容</Label>
+            <Textarea
+              id="test-message"
+              v-model="testMessage"
+              placeholder="输入要发送的测试消息..."
+              class="mt-2"
+              rows="4"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="testVisible = false">取消</Button>
+            <Button :disabled="!testMessage.trim()" @click="doSendTest">
+              {{ sending ? '发送中...' : '发送' }}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -85,6 +118,8 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useTeacherStore } from '@/stores/teacher'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -98,6 +133,8 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -107,6 +144,11 @@ const scanSubnet = ref('192.168.1.0/24')
 const scanning = ref(false)
 const scanVisible = ref(false)
 const scanResults = ref<string[]>([])
+
+const testVisible = ref(false)
+const testTargetIp = ref('')
+const testMessage = ref('')
+const sending = ref(false)
 
 let timer: number | undefined
 
@@ -127,6 +169,24 @@ async function doScan() {
     scanVisible.value = true
   } finally {
     scanning.value = false
+  }
+}
+
+function openTestDialog(ip: string) {
+  testTargetIp.value = ip
+  testMessage.value = ''
+  testVisible.value = true
+}
+
+async function doSendTest() {
+  if (!testMessage.value.trim()) return
+  sending.value = true
+  try {
+    const targets = testTargetIp.value ? [testTargetIp.value] : undefined
+    await store.testMessage(testMessage.value.trim(), targets)
+    testVisible.value = false
+  } finally {
+    sending.value = false
   }
 }
 

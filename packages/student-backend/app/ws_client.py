@@ -202,6 +202,12 @@ class StudentWebSocketClient:
                 net_state=state.mode,
             ))
 
+        elif msg_type == MsgType.TEST_MESSAGE:
+            content = payload.get("content", "")
+            state.last_test_message = content
+            state.last_test_message_ts = time.time()
+            logger.info(f"收到测试消息: {content}")
+
     async def _apply_mode(self, mode: str):
         from .filter.network_filter import apply_filter_mode
         state.set_mode(mode)

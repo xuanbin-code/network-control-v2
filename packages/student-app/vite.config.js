@@ -4,6 +4,9 @@ import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import { resolve } from 'path'
 
+// 外部环境中若设置了 ELECTRON_RUN_AS_NODE，Electron 会以 Node 模式启动，必须删除该变量
+delete process.env.ELECTRON_RUN_AS_NODE
+
 export default defineConfig({
   server: {
     port: 5174,

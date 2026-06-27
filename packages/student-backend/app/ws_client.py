@@ -28,6 +28,13 @@ HEARTBEAT_INTERVAL = 20
 RECONNECT_DELAY = 5
 BROWSING_INTERVAL = 15
 
+# 当前活跃的 WebSocket 客户端实例，供外部（如调试 API）获取/更新
+_current_client = None
+
+
+def get_current_client():
+    return _current_client
+
 
 def get_local_ip() -> str:
     try:
@@ -60,6 +67,8 @@ def parse_controller_ip(url: str) -> str:
 
 class StudentWebSocketClient:
     def __init__(self):
+        global _current_client
+        _current_client = self
         self.uri = CONFIG.get("controller_url", "ws://192.168.1.100:8765")
         # 兼容：若 url 没有路径，追加 /ws（当前 v2 后端使用 FastAPI /ws 路由）
         if not self.uri.rstrip('/').endswith('/ws'):
@@ -75,6 +84,15 @@ class StudentWebSocketClient:
 
     def set_dns_server(self, dns_server):
         self._dns_server = dns_server
+
+    def reload_uri(self):
+        """从最新 CONFIG 重新读取教师端地址，供调试 API 使用。"""
+        new_uri = CONFIG.get("controller_url", "ws://192.168.1.100:8765")
+        if not new_uri.rstrip('/').endswith('/ws'):
+            new_uri = new_uri.rstrip('/') + '/ws'
+        if new_uri != self.uri:
+            logger.info(f"WebSocket 地址已更新: {self.uri} -> {new_uri}")
+            self.uri = new_uri
 
     async def run(self):
         self.running = True

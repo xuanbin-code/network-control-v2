@@ -24,3 +24,8 @@ export async function updateConfig(data: Record<string, any>) {
 export async function applyMode(mode: string) {
   return instance.post('/apply_mode', { mode })
 }
+
+export async function reloadConfig() {
+  const res = await instance.post('/reload_config')
+  return res.data
+}

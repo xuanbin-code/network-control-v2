@@ -14,8 +14,8 @@ else:
 CONFIG_PATH = BASE_DIR / "config.json"
 
 DEFAULT_CONFIG = {
-    "controller_url": "ws://192.168.1.100:8765/ws",
-    "controller_api_url": "http://192.168.1.100:8770",
+    "controller_url": "ws://10.167.225.191:8765/ws",
+    "controller_api_url": "http://10.167.225.191:8770",
     "local_api_host": "127.0.0.1",
     "local_api_port": 8772,
     "upstream_dns": "114.114.114.114",
@@ -43,6 +43,13 @@ def load_config() -> dict:
 def save_config(cfg: dict):
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def reload_config() -> dict:
+    """重新从 config.json 加载配置，供调试使用。"""
+    global CONFIG
+    CONFIG = load_config()
+    return CONFIG
 
 
 CONFIG = load_config()

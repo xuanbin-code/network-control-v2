@@ -28,11 +28,16 @@ RULE_PREFIX = "NC_"
 
 
 def _run_ps(cmd: str, timeout: int = 15) -> tuple[bool, str]:
-    result = subprocess.run(
-        ["powershell", "-NonInteractive", "-Command", cmd],
-        capture_output=True, text=True, timeout=timeout,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-    )
+    try:
+        # -NoProfile 避免加载用户配置导致启动变慢或挂起
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
+            capture_output=True, text=True, timeout=timeout,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning(f"PS命令执行超时({timeout}s): {cmd[:200]}")
+        return False, f"timeout:{timeout}s"
     ok = result.returncode == 0
     out = (result.stdout + result.stderr).strip()
     if not ok:
@@ -155,13 +160,13 @@ def _gw_backup_path() -> str:
     return _GW_BACKUP_FILE
 
 
-def _get_default_gateways() -> list[dict]:
+def _get_default_gateways(timeout: int = 15) -> list[dict]:
     cmd = (
         'Get-NetRoute -DestinationPrefix "0.0.0.0/0" '
         '| Select-Object NextHop, InterfaceIndex, RouteMetric '
         '| ConvertTo-Json -Compress'
     )
-    ok, out = _run_ps(cmd)
+    ok, out = _run_ps(cmd, timeout=timeout)
     if not ok or not out.strip():
         return []
     try:
@@ -267,7 +272,8 @@ def disconnect_internet(controller_ip: str = "") -> bool:
 
 
 def has_internet_route() -> bool:
-    return bool(_get_default_gateways())
+    # 开机检测时使用较短超时，避免 PowerShell 启动慢导致启动卡住
+    return bool(_get_default_gateways(timeout=3))
 
 
 def reconnect_internet() -> bool:

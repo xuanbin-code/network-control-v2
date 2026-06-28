@@ -81,13 +81,15 @@ app = create_app()
 
 def _boot_lockdown():
     """开机默认断网（fail-closed），但保留到教师端的路由。"""
-    for _ in range(5):
-        if has_internet_route():
-            break
-        time.sleep(2)
     controller_ip = parse_controller_ip(CONFIG.get("controller_url", ""))
     if not controller_ip:
         logger.warning("controller_url 不是 IP，无法保留教师端路由，断网可能连不回教师端")
+
+    if not has_internet_route():
+        logger.warning("未检测到默认路由，跳过开机断网设置")
+        state.set_mode(FilterMode.DISCONNECT)
+        return
+
     logger.info("开机默认断网（fail-closed），等待教师端下发上次状态")
     state.set_mode(FilterMode.DISCONNECT)
     try:

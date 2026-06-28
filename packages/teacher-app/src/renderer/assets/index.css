@@ -4,26 +4,85 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* ── 青绿主色 ── */
+    --primary: 173 75% 41%;
+    --primary-foreground: 0 0% 100%;
+
+    /* ── 柔和青绿辅色 ── */
+    --secondary: 173 30% 92%;
+    --secondary-foreground: 173 50% 28%;
+
+    /* ── 暖白背景 ── */
+    --background: 30 20% 98%;
+    --foreground: 224 30% 15%;
+
+    /* ── 卡片 & 弹出层 ── */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 224 30% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 224 30% 15%;
+
+    /* ── 柔和 / 高亮 ── */
+    --muted: 30 10% 95%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 173 75% 94%;
+    --accent-foreground: 173 75% 32%;
+
+    /* ── 语义色 ── */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 72% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    /* ── 边框 & 输入 ── */
+    --border: 30 10% 90%;
+    --input: 30 10% 90%;
+    --ring: 173 75% 41%;
+
+    /* ── 圆角 ── */
+    --radius: 0.625rem;
+
+    /* ── 侧边栏 ── */
+    --sidebar-background: 173 30% 8%;
+    --sidebar-foreground: 0 0% 88%;
+    --sidebar-accent: 173 75% 48%;
+    --sidebar-border: 173 20% 18%;
+    --sidebar-muted: 173 20% 14%;
+
+    /* ── 阴影层级 ── */
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  }
+
+  .dark {
+    --background: 224 20% 10%;
+    --foreground: 30 10% 92%;
+    --card: 224 20% 13%;
+    --card-foreground: 30 10% 92%;
+    --popover: 224 20% 13%;
+    --popover-foreground: 30 10% 92%;
+    --primary: 173 75% 45%;
+    --primary-foreground: 224 30% 10%;
+    --secondary: 173 15% 18%;
+    --secondary-foreground: 30 10% 88%;
+    --muted: 224 15% 22%;
+    --muted-foreground: 220 8% 60%;
+    --accent: 173 15% 18%;
+    --accent-foreground: 30 10% 88%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 30 10% 92%;
+    --border: 224 15% 25%;
+    --input: 224 15% 25%;
+    --ring: 173 75% 45%;
+    --sidebar-background: 173 20% 8%;
+    --sidebar-foreground: 30 10% 85%;
+    --sidebar-accent: 173 75% 45%;
+    --sidebar-border: 173 15% 16%;
+    --sidebar-muted: 173 15% 12%;
   }
 }
 

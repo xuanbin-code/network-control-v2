@@ -1,105 +1,231 @@
 <template>
   <div class="space-y-6">
-    <h2 class="text-2xl font-bold tracking-tight">控制面板</h2>
-
-    <div class="flex items-center gap-6 rounded-lg border bg-card p-4 text-sm">
-      <div class="flex items-center gap-2">
-        <span class="text-muted-foreground">本机 IP</span>
-        <Badge variant="default">{{ store.serverInfo.ip || '获取中...' }}</Badge>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="text-muted-foreground">WebSocket 地址</span>
-        <code class="rounded bg-muted px-2 py-0.5 text-xs">{{ store.serverInfo.ws_url || '获取中...' }}</code>
-      </div>
-    </div>
-
+    <!-- ═══ 统计卡片 ═══ -->
     <div class="grid grid-cols-4 gap-4">
-      <Button variant="default" size="lg" class="w-full" :disabled="store.loading" @click="store.enableAll">
-        全部开网
-      </Button>
-      <Button variant="destructive" size="lg" class="w-full" :disabled="store.loading" @click="store.disableAll">
-        全部断网
-      </Button>
-      <Button variant="secondary" size="lg" class="w-full" :disabled="store.loading" @click="store.setMode('whitelist')">
-        全部白名单
-      </Button>
-      <Button variant="outline" size="lg" class="w-full" :disabled="store.loading" @click="store.setMode('blacklist')">
-        全部黑名单
-      </Button>
+      <Card v-for="stat in statsCards" :key="stat.label" class="shadow-sm">
+        <CardContent class="p-4 flex items-center gap-3">
+          <div :class="['size-10 rounded-lg flex items-center justify-center', stat.bg]">
+            <component :is="stat.icon" :class="['size-5', stat.iconColor]" />
+          </div>
+          <div>
+            <p class="text-2xs font-medium text-muted-foreground uppercase tracking-wider">{{ stat.label }}</p>
+            <p class="text-2xl font-bold text-foreground">{{ stat.value }}</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
-    <Separator />
-
-    <div class="flex items-center gap-3">
-      <Input v-model="scanSubnet" placeholder="192.168.1.0/24" class="w-[220px]" />
-      <Button :disabled="scanning" @click="doScan">扫描网段</Button>
-      <Button variant="outline" @click="store.fetchMachines">刷新列表</Button>
+    <!-- ═══ 服务器信息栏（压缩） ═══ -->
+    <div class="flex items-center gap-4 px-4 py-2 rounded-lg border bg-card text-xs text-muted-foreground">
+      <span>本机 <code class="text-foreground font-medium">{{ store.serverInfo.ip || '--' }}</code></span>
+      <Separator orientation="vertical" class="h-3" />
+      <span>WS <code class="text-foreground font-medium">{{ store.serverInfo.ws_url || '--' }}</code></span>
+      <div class="ml-auto flex items-center gap-1.5">
+        <span class="relative flex size-1.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+          <span class="relative inline-flex rounded-full size-1.5 bg-success" />
+        </span>
+        <span>每 3s 自动刷新</span>
+      </div>
     </div>
 
-    <div v-if="store.loading" class="text-sm text-muted-foreground">加载中...</div>
-    <Table v-else>
-      <TableHeader>
-        <TableRow>
-          <TableHead class="w-[140px]">IP</TableHead>
-          <TableHead class="w-[160px]">主机名</TableHead>
-          <TableHead class="w-[160px]">MAC</TableHead>
-          <TableHead class="w-[120px]">当前模式</TableHead>
-          <TableHead class="w-[80px]">在线</TableHead>
-          <TableHead class="w-[180px]">最后心跳</TableHead>
-          <TableHead>操作</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow v-for="row in store.machines" :key="row.ip">
-          <TableCell>{{ row.ip }}</TableCell>
-          <TableCell>{{ row.hostname }}</TableCell>
-          <TableCell>{{ row.mac }}</TableCell>
-          <TableCell>
-            <Badge :variant="modeVariant(row.mode)">{{ modeLabel(row.mode) }}</Badge>
-          </TableCell>
-          <TableCell>
-            <Badge :variant="row.online ? 'default' : 'secondary'">
-              {{ row.online ? '在线' : '离线' }}
-            </Badge>
-          </TableCell>
-          <TableCell>
-            {{ row.last_heartbeat ? new Date(row.last_heartbeat * 1000).toLocaleString() : '-' }}
-          </TableCell>
-          <TableCell>
-            <div class="flex flex-wrap gap-2">
-              <Button size="sm" variant="default" @click="store.enableSingle(row.ip)">开网</Button>
-              <Button size="sm" variant="destructive" @click="store.disableSingle(row.ip)">断网</Button>
-              <Button size="sm" variant="secondary" @click="store.setMode('whitelist', [row.ip])">白名单</Button>
-              <Button size="sm" variant="outline" @click="store.setMode('blacklist', [row.ip])">黑名单</Button>
-              <Button size="sm" variant="ghost" @click="openTestDialog(row.ip)">测试</Button>
+    <!-- ═══ 工具栏：筛选 + 扫描 + 批量操作 ═══ -->
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <!-- 筛选标签 -->
+      <div class="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+        <button
+          v-for="tab in filterTabs"
+          :key="tab.key"
+          @click="activeFilter = tab.key"
+          :class="[
+            'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+            activeFilter === tab.key
+              ? 'bg-background text-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground',
+          ]"
+        >
+          {{ tab.label }}
+          <span
+            v-if="tab.key !== 'all'"
+            :class="[
+              'ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full px-1 text-2xs font-medium',
+              tab.key === 'online' ? 'bg-success/10 text-success' : 'bg-muted-foreground/10 text-muted-foreground',
+            ]"
+          >
+            {{ tab.count }}
+          </span>
+        </button>
+      </div>
+
+      <!-- 右侧操作 -->
+      <div class="flex items-center gap-2">
+        <Input v-model="scanSubnet" placeholder="192.168.1.0/24" class="w-[180px] h-8 text-sm" />
+        <Button size="sm" variant="outline" @click="doScan" :disabled="scanning">
+          <ScanSearch class="size-3.5 mr-1" />
+          扫描
+        </Button>
+        <Separator orientation="vertical" class="h-5" />
+        <Button size="sm" variant="default" @click="handleEnableAll" :disabled="store.loading">
+          <Wifi class="size-3.5 mr-1" />
+          全部开网
+        </Button>
+        <Button size="sm" variant="destructive" @click="handleDisableAll" :disabled="store.loading">
+          <WifiOff class="size-3.5 mr-1" />
+          全部断网
+        </Button>
+        <Button size="sm" variant="secondary" @click="handleSetWhitelist" :disabled="store.loading">
+          白名单
+        </Button>
+        <Button size="sm" variant="outline" @click="handleSetBlacklist" :disabled="store.loading">
+          黑名单
+        </Button>
+      </div>
+    </div>
+
+    <!-- ═══ 机器表格 ═══ -->
+    <!-- 骨架屏 -->
+    <template v-if="isInitialLoad">
+      <div class="grid grid-cols-4 gap-4">
+        <div v-for="i in 4" :key="i" class="rounded-lg border bg-card p-4 animate-pulse">
+          <div class="flex items-center gap-3">
+            <div class="size-10 rounded-lg bg-muted" />
+            <div class="space-y-2">
+              <div class="h-3 w-16 rounded bg-muted" />
+              <div class="h-6 w-10 rounded bg-muted" />
             </div>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+          </div>
+        </div>
+      </div>
+      <Card class="shadow-sm mt-4">
+        <div v-for="i in 5" :key="i" class="flex items-center gap-4 px-4 py-3 border-b last:border-0 animate-pulse">
+          <div class="h-4 w-24 rounded bg-muted" />
+          <div class="h-4 w-20 rounded bg-muted" />
+          <div class="h-4 w-32 rounded bg-muted" />
+          <div class="h-5 w-14 rounded-full bg-muted" />
+          <div class="h-4 w-10 rounded bg-muted" />
+          <div class="h-4 w-28 rounded bg-muted ml-auto" />
+        </div>
+      </Card>
+    </template>
 
+    <!-- 真实表格 -->
+    <Card v-else class="shadow-sm overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow class="hover:bg-transparent">
+            <TableHead class="w-[130px]">IP 地址</TableHead>
+            <TableHead class="w-[140px]">主机名</TableHead>
+            <TableHead class="w-[150px]">MAC 地址</TableHead>
+            <TableHead class="w-[90px]">模式</TableHead>
+            <TableHead class="w-[72px]">状态</TableHead>
+            <TableHead class="w-[130px]">最后心跳</TableHead>
+            <TableHead class="w-[40px]"><span class="sr-only">操作</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="row in filteredMachines" :key="row.ip" class="group">
+            <!-- IP -->
+            <TableCell>
+              <span class="font-mono text-sm">{{ row.ip }}</span>
+            </TableCell>
+            <!-- 主机名 -->
+            <TableCell class="text-sm max-w-[140px] truncate">
+              {{ row.hostname || '-' }}
+            </TableCell>
+            <!-- MAC -->
+            <TableCell>
+              <code class="text-xs text-muted-foreground">{{ row.mac || '-' }}</code>
+            </TableCell>
+            <!-- 模式芯片 -->
+            <TableCell>
+              <span :class="modeChipClass(row.mode)" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border">
+                {{ modeLabel(row.mode) }}
+              </span>
+            </TableCell>
+            <!-- 在线状态 -->
+            <TableCell>
+              <div class="flex items-center gap-1.5">
+                <span
+                  :class="row.online ? 'bg-emerald-500' : 'bg-gray-300'"
+                  class="size-2 rounded-full inline-block shrink-0"
+                />
+                <span class="text-sm" :class="row.online ? 'text-emerald-700 font-medium' : 'text-muted-foreground'">
+                  {{ row.online ? '在线' : '离线' }}
+                </span>
+              </div>
+            </TableCell>
+            <!-- 最后心跳 -->
+            <TableCell class="text-xs text-muted-foreground">
+              {{ row.last_heartbeat ? formatRelativeTime(row.last_heartbeat) : '-' }}
+            </TableCell>
+            <!-- 操作下拉 -->
+            <TableCell class="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" size="icon-sm" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreHorizontal class="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-36">
+                  <DropdownMenuItem @select="store.enableSingle(row.ip)">
+                    <Wifi class="size-3.5 mr-2" />
+                    开网
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @select="store.disableSingle(row.ip)">
+                    <WifiOff class="size-3.5 mr-2" />
+                    断网
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem @select="store.setMode('whitelist', [row.ip])">
+                    白名单模式
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @select="store.setMode('blacklist', [row.ip])">
+                    黑名单模式
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem @select="openTestDialog(row.ip)">
+                    <MessageSquare class="size-3.5 mr-2" />
+                    测试消息
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+          <!-- 空状态 -->
+          <TableEmpty v-if="filteredMachines.length === 0" :colspan="7">
+            <div class="flex flex-col items-center gap-2 py-12 text-muted-foreground">
+              <MonitorOff class="size-8" />
+              <p class="text-sm">暂无机器数据</p>
+              <Button variant="outline" size="sm" @click="store.fetchMachines">
+                <RotateCw class="size-3.5 mr-1" />
+                刷新列表
+              </Button>
+            </div>
+          </TableEmpty>
+        </TableBody>
+      </Table>
+    </Card>
+
+    <!-- ═══ 扫描结果对话框 ═══ -->
     <Dialog v-model:open="scanVisible">
       <DialogContent>
         <DialogHeader>
           <DialogTitle>扫描结果</DialogTitle>
+          <DialogDescription>网段 {{ scanSubnet }} 中发现 {{ scanResults.length }} 台机器</DialogDescription>
         </DialogHeader>
-        <p>发现 {{ scanResults.length }} 台机器：</p>
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2 py-2">
           <Badge v-for="ip in scanResults" :key="ip" variant="secondary">{{ ip }}</Badge>
         </div>
       </DialogContent>
     </Dialog>
 
+    <!-- ═══ 测试消息对话框 ═══ -->
     <Dialog v-model:open="testVisible">
       <DialogContent>
         <DialogHeader>
           <DialogTitle>发送测试消息</DialogTitle>
-          <DialogDescription v-if="testTargetIp">
-            目标: {{ testTargetIp }}
-          </DialogDescription>
-          <DialogDescription v-else>
-            目标: 全部在线学生端
-          </DialogDescription>
+          <DialogDescription v-if="testTargetIp">目标: {{ testTargetIp }}</DialogDescription>
+          <DialogDescription v-else>目标: 全部在线学生端</DialogDescription>
         </DialogHeader>
         <div class="space-y-4">
           <div>
@@ -114,7 +240,8 @@
           </div>
           <DialogFooter>
             <Button variant="outline" @click="testVisible = false">取消</Button>
-            <Button :disabled="!testMessage.trim()" @click="doSendTest">
+            <Button :disabled="!testMessage.trim() || sending" @click="doSendTest">
+              <Loader2 v-if="sending" class="size-3.5 mr-1 animate-spin" />
               {{ sending ? '发送中...' : '发送' }}
             </Button>
           </DialogFooter>
@@ -125,14 +252,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useTeacherStore } from '@/stores/teacher'
+import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -140,6 +269,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableEmpty,
 } from '@/components/ui/table'
 import {
   Dialog,
@@ -149,23 +279,93 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Monitor,
+  Wifi,
+  WifiOff,
+  ScanSearch,
+  MoreHorizontal,
+  MessageSquare,
+  MonitorOff,
+  RotateCw,
+  Loader2,
+  HardDrive,
+  Shield,
+  Filter,
+} from '@lucide/vue'
+import { formatRelativeTime } from '@/lib/time'
 
 const store = useTeacherStore()
+
+// ── 筛选 ──
+const activeFilter = ref('all')
+const filterTabs = computed(() => {
+  const machines = store.machines
+  return [
+    { key: 'all', label: '全部', count: machines.length },
+    { key: 'online', label: '在线', count: machines.filter((m: any) => m.online).length },
+    { key: 'offline', label: '离线', count: machines.filter((m: any) => !m.online).length },
+  ]
+})
+
+const filteredMachines = computed(() => {
+  const machines = store.machines
+  if (activeFilter.value === 'online') return machines.filter((m: any) => m.online)
+  if (activeFilter.value === 'offline') return machines.filter((m: any) => !m.online)
+  return machines
+})
+
+const isInitialLoad = ref(true)
+
+// ── 统计卡片 ──
+const onlineCount = computed(() => store.machines.filter((m: any) => m.online).length)
+const totalCount = computed(() => store.machines.length)
+const activeRulesCount = computed(() => {
+  const wl = (store.rules as any).whitelist || []
+  const bl = (store.rules as any).blacklist || []
+  return wl.filter((r: any) => r.enabled).length + bl.filter((r: any) => r.enabled).length
+})
+const currentFilterMode = computed(() => {
+  const mode = (store.settings as any).filter_mode || ''
+  const map: Record<string, string> = { whitelist: '白名单', blacklist: '黑名单', normal: '正常' }
+  return map[mode] || mode || '--'
+})
+
+const statsCards = computed(() => [
+  { label: '在线机器', value: onlineCount.value, icon: Monitor, bg: 'bg-primary/10', iconColor: 'text-primary' },
+  { label: '总机器数', value: totalCount.value, icon: HardDrive, bg: 'bg-success/10', iconColor: 'text-success' },
+  { label: '活跃规则', value: activeRulesCount.value, icon: Shield, bg: 'bg-warning/10', iconColor: 'text-warning' },
+  { label: '过滤模式', value: currentFilterMode.value, icon: Filter, bg: 'bg-accent', iconColor: 'text-accent-foreground' },
+])
+
+// ── 扫描 ──
 const scanSubnet = ref('192.168.1.0/24')
 const scanning = ref(false)
 const scanVisible = ref(false)
 const scanResults = ref<string[]>([])
 
+// ── 测试消息 ──
 const testVisible = ref(false)
 const testTargetIp = ref('')
 const testMessage = ref('')
 const sending = ref(false)
 
+// ── 轮询 ──
 let timer: number | undefined
 
-onMounted(() => {
+onMounted(async () => {
   store.fetchServerInfo()
-  store.fetchMachines()
+  store.fetchRules()
+  store.fetchSettings()
+  await store.fetchMachines()
+  isInitialLoad.value = false
   timer = window.setInterval(() => store.fetchMachines(), 3000)
 })
 
@@ -179,6 +379,9 @@ async function doScan() {
     const res = await store.scanSubnet(scanSubnet.value)
     scanResults.value = res.ips
     scanVisible.value = true
+    toast.success(`发现 ${res.ips.length} 台在线机器`)
+  } catch {
+    toast.error('网段扫描失败，请检查网络连接')
   } finally {
     scanning.value = false
   }
@@ -197,8 +400,47 @@ async function doSendTest() {
     const targets = testTargetIp.value ? [testTargetIp.value] : undefined
     await store.testMessage(testMessage.value.trim(), targets)
     testVisible.value = false
+    toast.success('测试消息已发送')
+  } catch {
+    toast.error('发送失败，请稍后重试')
   } finally {
     sending.value = false
+  }
+}
+
+async function handleEnableAll() {
+  try {
+    await store.enableAll()
+    toast.success('已下发全部开网指令')
+  } catch {
+    toast.error('操作失败')
+  }
+}
+
+async function handleDisableAll() {
+  try {
+    await store.disableAll()
+    toast.success('已下发全部断网指令')
+  } catch {
+    toast.error('操作失败')
+  }
+}
+
+async function handleSetWhitelist() {
+  try {
+    await store.setMode('whitelist')
+    toast.success('已切换为白名单模式')
+  } catch {
+    toast.error('操作失败')
+  }
+}
+
+async function handleSetBlacklist() {
+  try {
+    await store.setMode('blacklist')
+    toast.success('已切换为黑名单模式')
+  } catch {
+    toast.error('操作失败')
   }
 }
 
@@ -212,13 +454,13 @@ function modeLabel(mode: string) {
   return map[mode] || mode
 }
 
-function modeVariant(mode: string) {
-  const map: Record<string, any> = {
-    normal: 'default',
-    whitelist: 'secondary',
-    blacklist: 'outline',
-    disconnect: 'destructive',
+function modeChipClass(mode: string) {
+  const map: Record<string, string> = {
+    normal: 'bg-sky-50 text-sky-700 border-sky-200',
+    whitelist: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    blacklist: 'bg-amber-50 text-amber-700 border-amber-200',
+    disconnect: 'bg-rose-50 text-rose-700 border-rose-200',
   }
-  return map[mode] || 'secondary'
+  return map[mode] || 'bg-gray-50 text-gray-600 border-gray-200'
 }
 </script>

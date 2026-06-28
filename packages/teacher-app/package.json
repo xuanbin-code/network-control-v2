@@ -22,7 +22,8 @@
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0",
     "vue": "^3.4.21",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",

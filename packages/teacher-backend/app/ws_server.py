@@ -39,13 +39,28 @@ class WsManager:
         await ws.accept()
         ip = ws.client.host if ws.client else "unknown"
         conn = StudentConnection(ws, ip)
+        # 如果该 IP 已有活跃连接，先关闭旧连接，防止覆盖后旧连接干扰新连接
+        old = self.students.get(ip)
+        if old is not None:
+            print(f"[WS] 关闭旧连接: {ip}")
+            try:
+                await old.ws.close()
+            except Exception:
+                pass
         self.students[ip] = conn
         print(f"[WS] 学生端连接: {ip}")
         return conn
 
-    def disconnect(self, conn: StudentConnection):
-        if conn.ip in self.students:
-            del self.students[conn.ip]
+    async def disconnect(self, conn: StudentConnection):
+        # 仅当 conn 仍是 self.students 中该 IP 的当前连接时才清理
+        # 否则说明该连接已被新连接替换，跳过清理以避免误删新连接
+        if self.students.get(conn.ip) is not conn:
+            return
+        del self.students[conn.ip]
+        db = get_db()
+        await db.execute(
+            "UPDATE machines SET online = 0 WHERE ip = ?", (conn.ip,)
+        )
         print(f"[WS] 学生端断开: {conn.ip}")
 
     async def broadcast(self, message: str, targets: Optional[list] = None):
@@ -57,9 +72,12 @@ class WsManager:
             except Exception:
                 dead.append(conn)
         for conn in dead:
-            self.disconnect(conn)
+            await self.disconnect(conn)
 
     async def handle_message(self, conn: StudentConnection, data: dict):
+        # 忽略已被替换的连接发来的消息，防止孤儿连接写入 DB
+        if self.students.get(conn.ip) is not conn:
+            return
         msg_type = data.get("type")
         payload = extract_payload(data)
         db = get_db()
@@ -215,7 +233,7 @@ def register_ws_routes(app: FastAPI):
                 data = await ws.receive_json()
                 await ws_manager.handle_message(conn, data)
         except WebSocketDisconnect:
-            ws_manager.disconnect(conn)
+            await ws_manager.disconnect(conn)
         except Exception as e:
             print(f"[WS] 异常: {e}")
-            ws_manager.disconnect(conn)
+            await ws_manager.disconnect(conn)

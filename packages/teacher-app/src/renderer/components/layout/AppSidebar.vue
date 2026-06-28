@@ -22,7 +22,7 @@
         :key="item.path"
         :to="item.path"
         :style="isActive(item.path) ? activeStyle : undefined"
-        class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06]"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06] focus:outline-none"
         :class="{ 'text-white': isActive(item.path) }"
       >
         <component :is="item.icon" class="size-4 shrink-0" :stroke-width="isActive(item.path) ? 2.5 : 2" />
@@ -46,7 +46,7 @@
           :key="child.path"
           :to="child.path"
           :style="isActive(child.path) ? activeStyle : undefined"
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06]"
+          class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06] focus:outline-none"
           :class="{ 'text-white': isActive(child.path) }"
         >
           <component :is="child.icon" class="size-4 shrink-0" :stroke-width="isActive(child.path) ? 2.5 : 2" />

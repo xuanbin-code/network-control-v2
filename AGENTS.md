@@ -63,12 +63,23 @@ network-control-v2/
     │   └── protocol.py
     ├── teacher-backend/         # 教师端 Python 后端
     │   ├── app/
-    │   │   ├── main.py          # 入口：三服务器并发
-    │   │   ├── api_server.py    # HTTP API 路由
-    │   │   ├── ws_server.py     # WebSocket 连接管理
-    │   │   ├── db.py            # SQLite 数据层
-    │   │   ├── config.py        # 路径/端口/环境变量
-    │   │   └── scanner.py       # 局域网 IP 扫描
+    │   │   ├── main.py                      # 入口：三服务器并发
+    │   │   ├── core/
+    │   │   │   └── config.py                # 路径/端口/环境变量
+    │   │   ├── db/
+    │   │   │   ├── database.py              # Database 类 + get_db
+    │   │   │   └── init.py                  # 初始化 SQL 与默认设置
+    │   │   ├── schemas/
+    │   │   │   └── requests.py              # Pydantic 请求模型
+    │   │   ├── services/
+    │   │   │   ├── scanner.py               # 局域网 IP 扫描
+    │   │   │   └── ws_manager.py            # WebSocket 连接管理
+    │   │   ├── websocket/
+    │   │   │   └── routes.py                # WebSocket 路由注册
+    │   │   └── api/
+    │   │       ├── deps.py                  # 公共依赖
+    │   │       └── v1/
+    │   │           └── endpoints/           # HTTP API 路由（按资源拆分）
     │   ├── main.spec            # PyInstaller 配置
     │   └── requirements.txt
     ├── teacher-app/             # 教师端 Electron + Vue3 前端
@@ -386,7 +397,7 @@ GET      /api/health                  # 健康检查
 
 ### 10.3 后端
 
-- 模块职责分离清晰：`api_server.py` 负责 HTTP，`ws_server.py`/`ws_client.py` 负责 WebSocket，`db.py` 负责数据，`config.py` 负责配置/路径。
+- 模块职责分离清晰：教师端 `app/api/v1/endpoints/` 负责 HTTP 路由，`app/services/ws_manager.py` 与 `app/websocket/routes.py` 负责 WebSocket，`app/db/` 负责数据，`app/core/config.py` 负责配置/路径；学生端仍保持原结构。
 - 使用 `sys.path.insert(0, ...)` 在运行时将 `packages/shared` 加入 Python 路径，实现跨包导入。
 - `BASE_DIR` 区分开发路径和 PyInstaller 冻结路径（`sys.frozen`）。
 - 网络控制逻辑集中在 `student-backend/app/filter/network_filter.py`，通过 PowerShell 修改 Windows 路由表、防火墙、DNS。
@@ -453,8 +464,8 @@ GET      /api/health                  # 健康检查
 ## 14. 给 AI 助手的快速参考
 
 - **新增 shadcn-vue 组件**：在两个前端包内分别使用 CLI 安装，例如 `cd packages/teacher-app && npx shadcn-vue@latest add button`。组件统一放在 `src/renderer/components/ui/`。
-- **新增 API**：优先在 `teacher-backend/app/api_server.py` 或 `student-backend/app/api_server.py` 中追加路由，并在对应前端 `api/*.ts` 与 Store 中调用。
+- **新增 API**：教师端优先在 `teacher-backend/app/api/v1/endpoints/` 下新增资源文件，然后在 `teacher-backend/app/api/v1/__init__.py` 中聚合；学生端仍在 `student-backend/app/api_server.py` 中追加。并在对应前端 `api/*.ts` 与 Store 中调用。
 - **新增 WebSocket 消息类型**：在 `packages/shared/protocol.py` 的 `MsgType` 中定义常量，并补充 `msg_*` 辅助函数；两端分别处理收发。
 - **新增网络模式**：修改 `FilterMode`，同步更新 `student-backend/app/filter/network_filter.py` 与教师端前端 UI。
-- **修改默认端口**：除代码外，注意更新根目录 `README.md`、本文件、教师端 `app/config.py` 与学生端默认配置。
-- **数据库变更**：在 `teacher-backend/app/db.py` 的 `init_db()` 中维护 schema 版本，当前无迁移工具，需手动处理。
+- **修改默认端口**：除代码外，注意更新根目录 `README.md`、本文件、教师端 `app/core/config.py` 与学生端默认配置。
+- **数据库变更**：在 `teacher-backend/app/db/init.py` 的 `INIT_SQL` 中维护 schema 版本，当前无迁移工具，需手动处理。

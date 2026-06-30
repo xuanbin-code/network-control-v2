@@ -16,10 +16,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from .db import get_db
-from .ws_server import register_ws_routes, ws_manager
-from .api_server import router as api_router
-from . import config
+from app.db import get_db
+from app.websocket import register_ws_routes
+from app.api import api_router
+from app.services.ws_manager import ws_manager
+from app.core import config
 
 
 async def lifespan(app: FastAPI):

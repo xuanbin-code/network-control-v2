@@ -1,28 +1,25 @@
-"""WebSocket 服务端：管理学生端连接"""
+"""WebSocket 连接管理：维护学生端连接、心跳、规则下发"""
 
 import asyncio
 import socket
 import time
 from typing import Dict, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from shared.protocol import (
-    MsgType, FilterMode,
-    msg_update_rules, msg_set_filter, msg_test_message,
-    parse_msg, extract_payload,
+    MsgType,
+    FilterMode,
+    msg_update_rules,
+    msg_set_filter,
+    msg_test_message,
+    extract_payload,
 )
 
-from .db import get_db
-from .config import HEARTBEAT_TIMEOUT
+from app.db import get_db
+from app.core.config import HEARTBEAT_TIMEOUT
 
 
 class StudentConnection:
-    def __init__(self, ws: WebSocket, ip: str):
+    def __init__(self, ws, ip: str):
         self.ws = ws
         self.ip = ip
         self.hostname = ""
@@ -35,7 +32,7 @@ class WsManager:
     def __init__(self):
         self.students: Dict[str, StudentConnection] = {}
 
-    async def connect(self, ws: WebSocket):
+    async def connect(self, ws):
         await ws.accept()
         ip = ws.client.host if ws.client else "unknown"
         conn = StudentConnection(ws, ip)
@@ -222,18 +219,3 @@ class WsManager:
 
 
 ws_manager = WsManager()
-
-
-def register_ws_routes(app: FastAPI):
-    @app.websocket("/ws")
-    async def websocket_endpoint(ws: WebSocket):
-        conn = await ws_manager.connect(ws)
-        try:
-            while True:
-                data = await ws.receive_json()
-                await ws_manager.handle_message(conn, data)
-        except WebSocketDisconnect:
-            await ws_manager.disconnect(conn)
-        except Exception as e:
-            print(f"[WS] 异常: {e}")
-            await ws_manager.disconnect(conn)

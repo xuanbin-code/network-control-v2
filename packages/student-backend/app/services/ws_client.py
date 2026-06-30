@@ -19,9 +19,9 @@ from shared.protocol import (
     msg_browsing_update, parse_msg, extract_payload,
 )
 
-from .config import CONFIG
-from .state import state
-from .tray_icon import current_tray
+from app.core.config import CONFIG
+from app.core.state import state
+from app.services.tray_icon import current_tray
 
 logger = logging.getLogger("ws_client")
 
@@ -221,8 +221,14 @@ class StudentWebSocketClient:
                 net_state=state.mode,
             ))
 
+        elif msg_type == MsgType.TEST_MESSAGE:
+            content = payload.get("content", "")
+            state.last_test_message = content
+            state.last_test_message_ts = time.time()
+            logger.info(f"收到测试消息: {content}")
+
     async def _apply_mode(self, mode: str):
-        from .filter.network_filter import apply_filter_mode
+        from app.services.network_filter import apply_filter_mode
         state.set_mode(mode)
         await asyncio.get_event_loop().run_in_executor(
             None,

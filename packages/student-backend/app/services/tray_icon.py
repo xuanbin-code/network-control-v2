@@ -26,7 +26,7 @@ except ImportError:
 
 DEFAULT_PASSWORD_HASH = hashlib.sha256(b"admin123").hexdigest()
 
-# 全局托盘实例引用，供 ws_client / api_server 在模式切换时更新图标
+# 全局托盘实例引用，供 ws_client / API 端点在模式切换时更新图标
 current_tray: "AgentTray | None" = None
 
 _STATE_COLORS = {

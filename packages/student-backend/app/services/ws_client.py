@@ -19,8 +19,8 @@ from shared.protocol import (
     msg_browsing_update, parse_msg, extract_payload,
 )
 
-from .config import CONFIG
-from .state import state
+from app.core.config import CONFIG
+from app.core.state import state
 
 logger = logging.getLogger("ws_client")
 

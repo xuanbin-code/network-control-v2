@@ -92,18 +92,25 @@ network-control-v2/
     │   └── package.json
     ├── student-backend/         # 学生端 Python 后端/代理
     │   ├── app/
-    │   │   ├── main.py          # 入口
-    │   │   ├── api_server.py    # 本地 HTTP API
-    │   │   ├── ws_client.py     # WebSocket 客户端（连接教师端）
-    │   │   ├── state.py         # 全局状态
-    │   │   ├── config.py        # config.json 读写 + 默认值
+    │   │   ├── main.py                      # 入口
+    │   │   ├── core/
+    │   │   │   ├── config.py                # config.json 读写 + 默认值
+    │   │   │   └── state.py                 # 全局状态
+    │   │   ├── api/
+    │   │   │   └── v1/
+    │   │   │       └── endpoints/           # 本地 HTTP API（按资源拆分）
+    │   │   ├── services/
+    │   │   │   ├── ws_client.py             # WebSocket 客户端（连接教师端）
+    │   │   │   ├── network_filter.py        # 防火墙/路由/DNS 控制
+    │   │   │   ├── dns_server.py            # 本地 DNS 代理
+    │   │   │   ├── network_monitor.py       # 拔网线检测
+    │   │   │   ├── lock_screen.py           # PyQt6 全屏锁屏
+    │   │   │   └── tray_icon.py             # 系统托盘
     │   │   ├── filter/
-    │   │   │   ├── network_filter.py  # 防火墙/路由/DNS 控制
-    │   │   │   └── dns_server.py      # 本地 DNS 代理
-    │   │   ├── network_monitor.py     # 拔网线检测
-    │   │   ├── lock_screen.py         # PyQt6 全屏锁屏
-    │   │   ├── tray_icon.py           # 系统托盘
-    │   │   └── windows_service.py     # Windows 服务封装
+    │   │   │   └── __init__.py              # 兼容层：重新导出 services 中的过滤 API
+    │   │   ├── windows/
+    │   │   │   └── service.py               # Windows 服务封装
+    │   │   └── config.py                    # 兼容层：重新导出 core.config
     │   ├── main.spec
     │   └── requirements.txt
     └── student-app/             # 学生端 Electron + Vue3 前端
@@ -138,7 +145,7 @@ network-control-v2/
 
 ### 4.2 学生端配置
 
-首次运行会自动生成 `packages/student-backend/config.json`，默认值见 `app/config.py`：
+首次运行会自动生成 `packages/student-backend/config.json`，默认值见 `app/core/config.py`：
 
 ```json
 {
@@ -397,10 +404,10 @@ GET      /api/health                  # 健康检查
 
 ### 10.3 后端
 
-- 模块职责分离清晰：教师端 `app/api/v1/endpoints/` 负责 HTTP 路由，`app/services/ws_manager.py` 与 `app/websocket/routes.py` 负责 WebSocket，`app/db/` 负责数据，`app/core/config.py` 负责配置/路径；学生端仍保持原结构。
+- 模块职责分离清晰：教师端 `app/api/v1/endpoints/` 负责 HTTP 路由，`app/services/ws_manager.py` 与 `app/websocket/routes.py` 负责 WebSocket，`app/db/` 负责数据，`app/core/config.py` 负责配置/路径；学生端 `app/api/v1/endpoints/` 负责 HTTP 路由，`app/services/` 负责 WebSocket/过滤/托盘/锁屏等业务逻辑，`app/core/` 负责配置与状态，`app/windows/` 负责 Windows 服务。
 - 使用 `sys.path.insert(0, ...)` 在运行时将 `packages/shared` 加入 Python 路径，实现跨包导入。
 - `BASE_DIR` 区分开发路径和 PyInstaller 冻结路径（`sys.frozen`）。
-- 网络控制逻辑集中在 `student-backend/app/filter/network_filter.py`，通过 PowerShell 修改 Windows 路由表、防火墙、DNS。
+- 网络控制逻辑集中在 `student-backend/app/services/network_filter.py`，通过 PowerShell 修改 Windows 路由表、防火墙、DNS。`app/filter/` 仅作为兼容层保留。
 
 ### 10.4 共享包
 
@@ -464,8 +471,8 @@ GET      /api/health                  # 健康检查
 ## 14. 给 AI 助手的快速参考
 
 - **新增 shadcn-vue 组件**：在两个前端包内分别使用 CLI 安装，例如 `cd packages/teacher-app && npx shadcn-vue@latest add button`。组件统一放在 `src/renderer/components/ui/`。
-- **新增 API**：教师端优先在 `teacher-backend/app/api/v1/endpoints/` 下新增资源文件，然后在 `teacher-backend/app/api/v1/__init__.py` 中聚合；学生端仍在 `student-backend/app/api_server.py` 中追加。并在对应前端 `api/*.ts` 与 Store 中调用。
+- **新增 API**：教师端与学生端均优先在 `app/api/v1/endpoints/` 下新增资源文件，然后在 `app/api/v1/__init__.py` 中聚合。并在对应前端 `api/*.ts` 与 Store 中调用。
 - **新增 WebSocket 消息类型**：在 `packages/shared/protocol.py` 的 `MsgType` 中定义常量，并补充 `msg_*` 辅助函数；两端分别处理收发。
-- **新增网络模式**：修改 `FilterMode`，同步更新 `student-backend/app/filter/network_filter.py` 与教师端前端 UI。
+- **新增网络模式**：修改 `FilterMode`，同步更新 `student-backend/app/services/network_filter.py` 与教师端前端 UI。
 - **修改默认端口**：除代码外，注意更新根目录 `README.md`、本文件、教师端 `app/core/config.py` 与学生端默认配置。
 - **数据库变更**：在 `teacher-backend/app/db/init.py` 的 `INIT_SQL` 中维护 schema 版本，当前无迁移工具，需手动处理。

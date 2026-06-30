@@ -3,7 +3,7 @@
 开发模式下直接启动：
     python -m app.main
 
-服务模式下由 windows_service.py 调用 run_agent()。
+服务模式下由 app.windows.service 调用 run_agent()。
 
 命令行：
     python -m app.main --lock <hash>   # 启动锁屏窗口
@@ -13,7 +13,6 @@ import asyncio
 import hashlib
 import logging
 import os
-import re
 import sys
 import time
 from pathlib import Path
@@ -26,17 +25,16 @@ import uvicorn
 
 from shared.protocol import FilterMode
 
-from .config import CONFIG, save_config
-from .ws_client import StudentWebSocketClient, parse_controller_ip
-from .api_server import router as api_router
-from .filter.network_filter import (
-    apply_filter_mode, has_internet_route, reconnect_internet,
-    add_host_routes_dynamic,
+from app.core.config import CONFIG, save_config
+from app.core.state import state
+from app.api import api_router
+from app.services.ws_client import StudentWebSocketClient, parse_controller_ip
+from app.services.network_filter import (
+    apply_filter_mode, has_internet_route, add_host_routes_dynamic,
 )
-from .filter.dns_server import DnsFilterServer
-from .state import state
-from .tray_icon import AgentTray
-from .network_monitor import NetworkMonitor
+from app.services.dns_server import DnsFilterServer
+from app.services.tray_icon import AgentTray
+from app.services.network_monitor import NetworkMonitor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -150,7 +148,7 @@ def main():
     # 锁屏模式
     if len(sys.argv) >= 2 and sys.argv[1] == "--lock":
         hash_val = sys.argv[2] if len(sys.argv) > 2 else hashlib.sha256(b"admin123").hexdigest()
-        from .lock_screen import run_lock_screen
+        from app.services.lock_screen import run_lock_screen
         run_lock_screen(hash_val)
         return
 

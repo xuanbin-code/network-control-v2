@@ -2,6 +2,12 @@
   <div class="space-y-6">
     <h2 class="text-2xl font-bold tracking-tight">当前状态</h2>
 
+    <Alert v-if="store.status.mode === 'disconnect'" variant="destructive">
+      <AlertDescription>
+        已断网：当前仅保留局域网与教师端连接，互联网访问已被阻断。
+      </AlertDescription>
+    </Alert>
+
     <Card>
       <CardHeader>
         <CardTitle>运行状态</CardTitle>
@@ -47,16 +53,36 @@
     </Card>
 
     <div class="grid grid-cols-4 gap-4">
-      <Button variant="default" size="lg" class="w-full" @click="store.setMode('normal')">
+      <Button
+        :variant="store.status.mode === 'normal' ? 'default' : 'outline'"
+        size="lg"
+        class="w-full"
+        @click="store.setMode('normal')"
+      >
         开网
       </Button>
-      <Button variant="destructive" size="lg" class="w-full" @click="store.setMode('disconnect')">
+      <Button
+        :variant="store.status.mode === 'disconnect' ? 'destructive' : 'outline'"
+        size="lg"
+        class="w-full"
+        @click="store.setMode('disconnect')"
+      >
         断网
       </Button>
-      <Button variant="secondary" size="lg" class="w-full" @click="store.setMode('whitelist')">
+      <Button
+        :variant="store.status.mode === 'whitelist' ? 'secondary' : 'outline'"
+        size="lg"
+        class="w-full"
+        @click="store.setMode('whitelist')"
+      >
         白名单
       </Button>
-      <Button variant="outline" size="lg" class="w-full" @click="store.setMode('blacklist')">
+      <Button
+        :variant="store.status.mode === 'blacklist' ? 'secondary' : 'outline'"
+        size="lg"
+        class="w-full"
+        @click="store.setMode('blacklist')"
+      >
         黑名单
       </Button>
     </div>
@@ -69,6 +95,7 @@ import { useStudentStore } from '@/stores/student'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const store = useStudentStore()
 let timer: number | undefined

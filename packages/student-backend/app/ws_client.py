@@ -21,6 +21,7 @@ from shared.protocol import (
 
 from .config import CONFIG
 from .state import state
+from .tray_icon import current_tray
 
 logger = logging.getLogger("ws_client")
 
@@ -236,6 +237,12 @@ class StudentWebSocketClient:
         # 黑名单模式需要本地 DNS 在过滤状态
         if self._dns_server and self._dns_server.running:
             self._dns_server.set_mode(mode)
+        # 同步托盘图标状态
+        if current_tray:
+            try:
+                current_tray.set_net_state(mode)
+            except Exception:
+                pass
         await self.send(msg_status(
             filter_active=state.filter_active,
             dns_running=self._dns_server.running if self._dns_server else False,

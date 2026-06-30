@@ -27,7 +27,8 @@ class AgentState:
 
     def set_mode(self, mode: str):
         self.mode = mode
-        self.filter_active = mode in (FilterMode.WHITELIST, FilterMode.BLACKLIST)
+        # disconnect 模式下网络同样处于被控状态，应视为 filter_active
+        self.filter_active = mode in (FilterMode.WHITELIST, FilterMode.BLACKLIST, FilterMode.DISCONNECT)
 
     def on_query_domain(self, domain: str):
         from datetime import datetime

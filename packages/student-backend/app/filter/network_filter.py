@@ -236,6 +236,12 @@ def add_host_routes_dynamic(ips: list[str]) -> set[str]:
 
 
 def _delete_default_route() -> bool:
+    """删除所有 IPv4 默认路由，实现彻底断网。
+
+    先通过 Get-NetRoute 枚举所有 0.0.0.0/0 路由并按 InterfaceIndex 逐条删除，
+    比 legacy 'route DELETE' 更可靠，能处理多网卡/VPN 等多条默认路由场景。
+    删除前会把网关信息备份到 gw_backup.json，供 reconnect_internet 恢复。
+    """
     gateways = _get_default_gateways()
     if not gateways:
         return True
@@ -246,12 +252,33 @@ def _delete_default_route() -> bool:
     except Exception as e:
         logger.warning(f"保存网关信息失败: {e}")
 
-    ok, out = _run_ps('route DELETE 0.0.0.0 MASK 0.0.0.0')
-    if ok:
-        logger.info(f"已删除默认路由（共 {len(gateways)} 条），互联网已断开，局域网保留")
+    # 方法 1：按 InterfaceIndex 逐条删除，最彻底
+    removed = 0
+    failed = 0
+    for gw in gateways:
+        idx = gw.get("InterfaceIndex", 0)
+        if not idx:
+            continue
+        ok, out = _run_ps(
+            f'Remove-NetRoute -DestinationPrefix "0.0.0.0/0" '
+            f'-InterfaceIndex {idx} -Confirm:$false -ErrorAction SilentlyContinue'
+        )
+        if ok:
+            removed += 1
+        else:
+            logger.debug(f"Remove-NetRoute 删除 IF {idx} 默认路由失败: {out}")
+            failed += 1
+
+    # 方法 2：兜底，使用传统 route 命令再删一次
+    if failed or removed < len(gateways):
+        _run_ps('route DELETE 0.0.0.0 MASK 0.0.0.0')
+
+    if removed > 0 or not failed:
+        logger.info(f"已删除默认路由（{removed}/{len(gateways)} 条），互联网已断开，局域网保留")
+        return True
     else:
-        logger.warning(f"删除默认路由失败: {out}")
-    return ok
+        logger.warning("删除默认路由失败，请检查管理员权限")
+        return False
 
 
 def disconnect_internet(controller_ip: str = "") -> bool:

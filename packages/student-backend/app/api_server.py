@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from .state import state
 from .config import CONFIG, save_config, reload_config
 from .ws_client import get_current_client
+from .tray_icon import current_tray
 
 router = APIRouter(prefix="/api")
 
@@ -70,6 +71,12 @@ async def apply_mode(data: dict):
         controller_ip=state.controller_ip,
         upstream_dns=state.upstream_dns,
     )
+    # 同步托盘图标状态
+    if current_tray:
+        try:
+            current_tray.set_net_state(mode)
+        except Exception:
+            pass
     return {"ok": True, "mode": mode}
 
 

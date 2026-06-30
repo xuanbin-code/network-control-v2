@@ -33,38 +33,66 @@
         </div>
 
         <div class="flex gap-3 pt-2">
-          <Button :disabled="loading" @click="startBlackScreen">
+          <Button :disabled="blackScreenLoading" @click="startBlackScreen">
             <Monitor class="mr-2 size-4" />
-            {{ loading ? '启动中...' : '启动黑屏测试' }}
+            {{ blackScreenLoading ? '启动中...' : '启动黑屏测试' }}
           </Button>
           <Button variant="outline" :disabled="unlockLoading" @click="sendUnlock">
             <Unlock class="mr-2 size-4" />
             {{ unlockLoading ? '解除中...' : 'IPC 解除黑屏' }}
           </Button>
         </div>
-
-        <Alert v-if="message" :variant="messageType" class="mt-4">
-          <AlertDescription>{{ message }}</AlertDescription>
-        </Alert>
       </CardContent>
     </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>网络控制测试</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <p class="text-sm text-muted-foreground">
+          直接切换学生端网络模式，用于验证路由/DNS/防火墙控制是否正常。
+        </p>
+        <div class="flex gap-3">
+          <Button variant="destructive" :disabled="networkLoading" @click="setNetworkMode('disconnect')">
+            <WifiOff class="mr-2 size-4" />
+            断网
+          </Button>
+          <Button variant="default" :disabled="networkLoading" @click="setNetworkMode('normal')">
+            <Wifi class="mr-2 size-4" />
+            开网
+          </Button>
+          <Button variant="outline" :disabled="networkLoading" @click="setNetworkMode('whitelist')">
+            白名单
+          </Button>
+          <Button variant="outline" :disabled="networkLoading" @click="setNetworkMode('blacklist')">
+            黑名单
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Alert v-if="message" :variant="messageType" class="mt-4">
+      <AlertDescription>{{ message }}</AlertDescription>
+    </Alert>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Monitor, Unlock } from '@lucide/vue'
+import { Monitor, Unlock, Wifi, WifiOff } from '@lucide/vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { testBlackScreen, sendBlackScreenUnlock } from '@/api/student'
+import { testBlackScreen, sendBlackScreenUnlock, applyMode } from '@/api/student'
 
 const countdown = ref(30)
 const infinite = ref(false)
-const loading = ref(false)
+const blackScreenLoading = ref(false)
 const unlockLoading = ref(false)
+const networkLoading = ref(false)
 const message = ref('')
 const messageType = ref<'default' | 'destructive'>('default')
 
@@ -77,7 +105,7 @@ function showMessage(text: string, type: 'default' | 'destructive' = 'default') 
 }
 
 async function startBlackScreen() {
-  loading.value = true
+  blackScreenLoading.value = true
   try {
     const seconds = infinite.value ? 0 : countdown.value
     const res = await testBlackScreen(seconds)
@@ -91,7 +119,7 @@ async function startBlackScreen() {
   } catch (err: any) {
     showMessage('请求失败：' + (err.message || String(err)), 'destructive')
   } finally {
-    loading.value = false
+    blackScreenLoading.value = false
   }
 }
 
@@ -104,6 +132,24 @@ async function sendUnlock() {
     showMessage('请求失败：' + (err.message || String(err)), 'destructive')
   } finally {
     unlockLoading.value = false
+  }
+}
+
+async function setNetworkMode(mode: string) {
+  networkLoading.value = true
+  try {
+    await applyMode(mode)
+    const labels: Record<string, string> = {
+      normal: '已切换为正常上网',
+      disconnect: '已切换为断网模式',
+      whitelist: '已切换为白名单过滤',
+      blacklist: '已切换为黑名单过滤',
+    }
+    showMessage(labels[mode] || `已切换为 ${mode}`)
+  } catch (err: any) {
+    showMessage('切换失败：' + (err.message || String(err)), 'destructive')
+  } finally {
+    networkLoading.value = false
   }
 }
 </script>

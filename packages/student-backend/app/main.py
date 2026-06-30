@@ -113,6 +113,9 @@ async def run_agent():
         on_exit_confirmed=_on_exit_confirmed,
     )
     tray.start()
+    from . import tray_icon
+    tray_icon.current_tray = tray
+    tray.set_net_state(FilterMode.DISCONNECT)
 
     monitor = NetworkMonitor(
         unlock_password_hash=CONFIG.get("unlock_password_hash",

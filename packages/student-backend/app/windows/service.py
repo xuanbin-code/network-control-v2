@@ -86,7 +86,7 @@ def _configure_failure_recovery():
     subprocess.run([
         "sc", "config", SERVICE_NAME, "start=", "auto"
     ], capture_output=True)
-    print("已配置失败自动重启策略 + 开机立即自启（auto）")
+    print("Configured failure recovery restart policy + auto start on boot")
 
 
 if __name__ == "__main__":

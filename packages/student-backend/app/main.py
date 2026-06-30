@@ -1,12 +1,12 @@
-"""学生端后端入口
+"""Student backend entry point.
 
-开发模式下直接启动：
+Run in dev mode:
     python -m app.main
 
-服务模式下由 app.windows.service 调用 run_agent()。
+In service mode, app.windows.service calls run_agent().
 
-命令行：
-    python -m app.main --lock <hash>   # 启动锁屏窗口
+Command line:
+    python -m app.main --lock <hash>   # Launch lock screen window
 """
 
 import asyncio
@@ -16,6 +16,18 @@ import os
 import sys
 import time
 from pathlib import Path
+
+# Force UTF-8 for stdout/stderr to avoid garbled output on Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
@@ -79,32 +91,32 @@ app = create_app()
 
 
 def _boot_lockdown():
-    """开机默认断网（fail-closed），但保留到教师端的路由。"""
+    """Fail-closed boot: disconnect internet but keep route to controller."""
     controller_ip = parse_controller_ip(CONFIG.get("controller_url", ""))
     if not controller_ip:
-        logger.warning("controller_url 不是 IP，无法保留教师端路由，断网可能连不回教师端")
+        logger.warning("controller_url is not an IP; cannot preserve controller route")
 
     if not has_internet_route():
-        logger.warning("未检测到默认路由，跳过开机断网设置")
+        logger.warning("No default route detected; skip boot lockdown")
         state.set_mode(FilterMode.DISCONNECT)
         return
 
-    logger.info("开机默认断网（fail-closed），等待教师端下发上次状态")
+    logger.info("Boot lockdown (fail-closed); waiting for controller rules")
     state.set_mode(FilterMode.DISCONNECT)
     try:
         apply_filter_mode(FilterMode.DISCONNECT, controller_ip=controller_ip)
     except Exception as e:
-        logger.warning(f"开机断网执行失败（可能需要管理员权限）: {e}")
+        logger.warning(f"Boot lockdown failed (administrator rights may be required): {e}")
 
 
 def _on_exit_confirmed():
-    logger.info("用户通过托盘密码验证，退出程序")
+    logger.info("User confirmed exit via tray password")
     apply_filter_mode(FilterMode.NORMAL)
     os._exit(0)
 
 
 async def run_agent():
-    """启动 WebSocket 客户端、本地 API、DNS 服务、托盘、网络监控等核心逻辑"""
+    """Start WebSocket client, local API, DNS server, tray icon and network monitor."""
     tray = AgentTray(
         password_hash=CONFIG.get("tray_password_hash",
                                  hashlib.sha256(b"admin123").hexdigest()),
@@ -120,13 +132,13 @@ async def run_agent():
                                         hashlib.sha256(b"admin123").hexdigest())
     )
 
-    # 开机即锁网
+    # Lock down on startup
     _boot_lockdown()
 
     try:
         dns_server.start()
     except Exception as e:
-        logger.warning(f"DNS 服务器启动失败（可能需要管理员权限）: {e}")
+        logger.warning(f"DNS server failed to start (administrator rights may be required): {e}")
 
     host = CONFIG.get("local_api_host", "127.0.0.1")
     port = CONFIG.get("local_api_port", 8772)
@@ -148,7 +160,7 @@ async def run_agent():
 
 
 def main():
-    # 锁屏模式
+    # Lock screen mode
     if len(sys.argv) >= 2 and sys.argv[1] == "--lock":
         hash_val = sys.argv[2] if len(sys.argv) > 2 else hashlib.sha256(b"admin123").hexdigest()
         from app.services.lock_screen import run_lock_screen
@@ -158,7 +170,7 @@ def main():
     try:
         asyncio.run(run_agent())
     except KeyboardInterrupt:
-        print("[Student Backend] 用户中断")
+        print("[Student Backend] Interrupted by user")
     finally:
         apply_filter_mode(FilterMode.NORMAL)
         dns_server.stop()

@@ -31,9 +31,9 @@ def _close_lock_screen():
         subprocess.run(['powershell', '-NonInteractive', '-Command', ps],
                        capture_output=True, timeout=15,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        logger.info("已关闭全部锁屏进程(--lock)")
+        logger.info("All lock-screen processes (--lock) closed")
     except Exception as e:
-        logger.warning(f"关闭锁屏进程失败: {e}")
+        logger.warning(f"Failed to close lock-screen process: {e}")
 
 
 def _is_process_alive(pid: int) -> bool:
@@ -61,7 +61,7 @@ def _launch_lock_screen(unlock_hash: str) -> int | None:
 
         session_id = win32ts.WTSGetActiveConsoleSessionId()
         if session_id == 0xFFFFFFFF:
-            raise RuntimeError("无活动用户会话")
+            raise RuntimeError("No active user session")
 
         user_token = win32ts.WTSQueryUserToken(session_id)
         primary_token = win32security.DuplicateTokenEx(
@@ -87,20 +87,20 @@ def _launch_lock_screen(unlock_hash: str) -> int | None:
         pid = info[2]
         win32api.CloseHandle(info[0])
         win32api.CloseHandle(info[1])
-        logger.info(f"锁屏进程已启动 PID={pid}")
+        logger.info(f"Lock-screen process started PID={pid}")
         return pid
     except Exception as e:
-        logger.warning(f"WTS 方式启动锁屏失败({e})，降级为当前会话直接启动")
+        logger.warning(f"WTS lock-screen launch failed ({e}), falling back to current session")
 
     try:
         proc = subprocess.Popen(
             [exe, "--lock", unlock_hash],
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
-        logger.info(f"锁屏进程已启动(降级模式) PID={proc.pid}")
+        logger.info(f"Lock-screen process started (fallback mode) PID={proc.pid}")
         return proc.pid
     except Exception as e2:
-        logger.error(f"启动锁屏失败: {e2}")
+        logger.error(f"Failed to start lock screen: {e2}")
         return None
 
 
@@ -119,24 +119,24 @@ class NetworkMonitor:
                 up = await asyncio.get_event_loop().run_in_executor(None, _is_network_up)
                 if not up and self._network_was_up:
                     self._network_was_up = False
-                    logger.warning("检测到网线断开，启动锁屏")
+                    logger.warning("Network cable disconnected, starting lock screen")
                     self._lock_screen_pid = await asyncio.get_event_loop().run_in_executor(
                         None, _launch_lock_screen, self.unlock_password_hash
                     )
                 elif up and not self._network_was_up:
                     self._network_was_up = True
-                    logger.info("网络已恢复，关闭锁屏")
+                    logger.info("Network restored, closing lock screen")
                     await asyncio.get_event_loop().run_in_executor(None, _close_lock_screen)
                     self._lock_screen_pid = None
 
                 if not self._network_was_up and self._lock_screen_pid:
                     if not _is_process_alive(self._lock_screen_pid):
-                        logger.info("锁屏进程退出，重新启动")
+                        logger.info("Lock-screen process exited, restarting")
                         self._lock_screen_pid = await asyncio.get_event_loop().run_in_executor(
                             None, _launch_lock_screen, self.unlock_password_hash
                         )
             except Exception as e:
-                logger.debug(f"网络监控异常: {e}")
+                logger.debug(f"Network monitor exception: {e}")
 
     def stop(self):
         self._stop = True

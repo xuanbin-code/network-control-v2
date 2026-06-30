@@ -38,7 +38,7 @@ class FilterResolver(BaseResolver):
         normalized = [d.strip().lower().rstrip(".") for d in domains if d.strip()]
         with self._lock:
             self._domains = normalized
-        logger.info(f"[{self.mode}] 规则已更新，共 {len(normalized)} 条域名")
+        logger.info(f"[{self.mode}] Rules updated, {len(normalized)} domain(s)")
 
     def _matches(self, qname: str) -> bool:
         name = qname.lower().rstrip(".")
@@ -62,7 +62,7 @@ class FilterResolver(BaseResolver):
             sock.close()
             return DNSRecord.parse(data)
         except Exception as e:
-            logger.warning(f"上游DNS查询失败: {e}")
+            logger.warning(f"Upstream DNS query failed: {e}")
             reply = request.reply()
             reply.header.rcode = RCODE.SERVFAIL
             return reply
@@ -94,7 +94,7 @@ class FilterResolver(BaseResolver):
 
         if self.mode == FilterMode.WHITELIST:
             if not matched:
-                logger.debug(f"[白名单拦截] {qname}")
+                logger.debug(f"[Whitelist block] {qname}")
                 reply = request.reply()
                 reply.header.rcode = RCODE.NXDOMAIN
                 return reply
@@ -109,12 +109,12 @@ class FilterResolver(BaseResolver):
                     try:
                         self.on_resolved_ips(ips)
                     except Exception as e:
-                        logger.warning(f"动态加路由失败 ({qname}): {e}")
+                        logger.warning(f"Dynamic route add failed ({qname}): {e}")
             return response
 
         else:  # BLACKLIST
             if matched:
-                logger.debug(f"[黑名单拦截] {qname}")
+                logger.debug(f"[Blacklist block] {qname}")
                 reply = request.reply()
                 reply.header.rcode = RCODE.NXDOMAIN
                 return reply
@@ -156,9 +156,9 @@ class DnsFilterServer:
             self._thread = threading.Thread(target=self._server.start, daemon=True)
             self._thread.start()
             self.running = True
-            logger.info(f"DNS服务器已启动: {self.bind_addr}:{self.port} 模式={self.resolver.mode}")
+            logger.info(f"DNS server started: {self.bind_addr}:{self.port} mode={self.resolver.mode}")
         except Exception as e:
-            logger.error(f"DNS服务器启动失败: {e}")
+            logger.error(f"DNS server start failed: {e}")
             raise
 
     def stop(self):
@@ -168,7 +168,7 @@ class DnsFilterServer:
             except Exception:
                 pass
             self.running = False
-            logger.info("DNS服务器已停止")
+            logger.info("DNS server stopped")
 
     def update_domains(self, domains: list[str]):
         self.resolver.update_domains(domains)

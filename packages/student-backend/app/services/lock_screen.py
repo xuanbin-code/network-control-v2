@@ -18,7 +18,7 @@ import threading
 import traceback
 from typing import cast
 
-# 设置 stdout 编码为 utf-8，避免中文乱码
+# Force UTF-8 for stdout to avoid garbled output
 # type: ignore 用于消除部分 IDE 对 sys.stdout.reconfigure 的类型误报
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -74,7 +74,7 @@ class _IpcCommandHandler(socketserver.StreamRequestHandler):
             server = cast(BlackScreenIpcServer, self.server)
 
             if command == IPC_COMMAND_UNLOCK:
-                print(f"[BlackScreenIpc] 收到 UNLOCK 命令，来源: {self.client_address}")
+                print(f"[BlackScreenIpc] Received UNLOCK command from {self.client_address}")
                 if server.unlock_callback:
                     try:
                         # 先发送响应并强制刷新，再触发关闭窗口的回调
@@ -82,7 +82,7 @@ class _IpcCommandHandler(socketserver.StreamRequestHandler):
                         self.wfile.flush()
                         server.unlock_callback()
                     except Exception as e:
-                        print(f"[BlackScreenIpc] 执行 UNLOCK 回调异常: {e}")
+                        print(f"[BlackScreenIpc] UNLOCK callback exception: {e}")
                         self.wfile.write(IPC_RESPONSE_ERROR.encode())
                         self.wfile.flush()
                 else:
@@ -96,7 +96,7 @@ class _IpcCommandHandler(socketserver.StreamRequestHandler):
                 self.wfile.write(IPC_RESPONSE_ERROR.encode())
                 self.wfile.flush()
         except Exception as e:
-            print(f"[BlackScreenIpc] 处理命令异常: {e}")
+            print(f"[BlackScreenIpc] Command handling exception: {e}")
 
 
 class BlackScreenIpcServer(socketserver.ThreadingTCPServer):
@@ -126,13 +126,13 @@ class BlackScreenIpcServer(socketserver.ThreadingTCPServer):
         """在后台线程中启动 IPC 服务器。"""
         self._thread = threading.Thread(target=self.serve_forever, daemon=True)
         self._thread.start()
-        print(f"[BlackScreenIpc] 已启动，监听 {self.host}:{self.port}")
+        print(f"[BlackScreenIpc] Started, listening on {self.host}:{self.port}")
 
     def stop(self):
         """停止 IPC 服务器。"""
         self.shutdown()
         self.server_close()
-        print("[BlackScreenIpc] 已停止。")
+        print("[BlackScreenIpc] Stopped.")
 
 
 def find_available_port(host: str = DEFAULT_BLACK_SCREEN_IPC_HOST, start: int = DEFAULT_BLACK_SCREEN_IPC_PORT) -> int:
@@ -145,7 +145,7 @@ def find_available_port(host: str = DEFAULT_BLACK_SCREEN_IPC_HOST, start: int = 
             if result != 0:
                 return port
         port += 1
-    raise RuntimeError("无法找到可用的 IPC 端口")
+    raise RuntimeError("No available IPC port found")
 
 
 def send_unlock_command(
@@ -162,10 +162,10 @@ def send_unlock_command(
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.sendall(f"{IPC_COMMAND_UNLOCK}\n".encode())
             response = sock.recv(64).decode("utf-8", errors="ignore").strip()
-            print(f"[send_unlock_command] 收到响应: {response}")
+            print(f"[send_unlock_command] Received response: {response}")
             return response == "OK"
     except Exception as e:
-        print(f"[send_unlock_command] 发送解除命令失败: {e}")
+        print(f"[send_unlock_command] Failed to send unlock command: {e}")
         return False
 
 
@@ -457,7 +457,7 @@ class BlackScreenQuiet(QWidget):
             self._ipc_server.start()
             self.ipc_label.setText(f"IPC 监听: {self._ipc_host}:{self._ipc_server.port}")
         except Exception as e:
-            print(f"[BlackScreenQuiet] 启动 IPC 服务器失败: {e}")
+            print(f"[BlackScreenQuiet] Failed to start IPC server: {e}")
             self.ipc_label.setText(f"IPC 未启动: {e}")
 
     def _schedule_exit(self):
@@ -467,10 +467,10 @@ class BlackScreenQuiet(QWidget):
     def _test_ipc_unlock(self):
         """点击测试按钮，模拟教师端通过 IPC 发送解除命令。"""
         if self._ipc_server is None:
-            print("[BlackScreenQuiet] IPC 服务器未启动，无法测试远程解除。")
+            print("[BlackScreenQuiet] IPC server not started, cannot test remote unlock.")
             return
         port = self._ipc_server.port
-        print(f"[BlackScreenQuiet] 测试按钮触发 IPC 解除命令到 127.0.0.1:{port}")
+        print(f"[BlackScreenQuiet] Test button triggered IPC unlock command to 127.0.0.1:{port}")
         threading.Thread(
             target=send_unlock_command,
             kwargs={"host": self._ipc_host, "port": port},
@@ -518,7 +518,7 @@ class BlackScreenQuiet(QWidget):
         self.countdown_label.setText(self._format_time(self.remaining_seconds))
         if self.remaining_seconds <= 0:
             self._timer.stop()
-            print("[BlackScreenQuiet] 倒计时结束，自动解除黑屏安静。")
+            print("[BlackScreenQuiet] Countdown finished, auto unlocking black screen quiet.")
             self._exit_test()
 
     def _exit_test(self):
@@ -560,12 +560,12 @@ def run_black_screen_quiet(
 
     screens = app.screens()
     if not screens:
-        print("[run_black_screen_quiet] 错误：未检测到可用屏幕，无法显示黑屏窗口。")
+        print("[run_black_screen_quiet] Error: no available screens detected, cannot display black screen window.")
         sys.exit(1)
 
     infinite = countdown_seconds is None or countdown_seconds <= 0
-    mode_text = "持续黑屏" if infinite else f"倒计时 {countdown_seconds} 秒"
-    print(f"[run_black_screen_quiet] 检测到 {len(screens)} 个屏幕，启动黑屏安静窗口（{mode_text}）。")
+    mode_text = "persistent black screen" if infinite else f"countdown {countdown_seconds}s"
+    print(f"[run_black_screen_quiet] Detected {len(screens)} screen(s), starting black screen quiet window ({mode_text}).")
     window = BlackScreenQuiet(
         countdown_seconds=countdown_seconds,
         ipc_host=ipc_host,
@@ -590,12 +590,12 @@ def main():
                 value = int(sys.argv[1])
                 countdown = value
             except ValueError:
-                print(f"[main] 警告：无法解析倒计时参数 '{sys.argv[1]}'，已使用默认值 {DEFAULT_BLACK_SCREEN_SECONDS}。")
+                print(f"[main] Warning: cannot parse countdown argument '{sys.argv[1]}', using default {DEFAULT_BLACK_SCREEN_SECONDS}.")
         run_black_screen_quiet(countdown)
     except SystemExit:
         raise
     except Exception as e:
-        print(f"[main] 运行异常: {e}")
+        print(f"[main] Runtime exception: {e}")
         traceback.print_exc()
         sys.exit(1)
 

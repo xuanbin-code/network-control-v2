@@ -36,7 +36,7 @@ def load_config() -> dict:
             merged.update(cfg)
             return merged
         except Exception as e:
-            print(f"[Config] 读取配置失败: {e}, 使用默认配置")
+            print(f"[Config] Failed to read config: {e}, using default config")
     return DEFAULT_CONFIG.copy()
 
 

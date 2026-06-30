@@ -1,17 +1,17 @@
 <template>
-  <!-- 玻璃质感侧边栏 -->
+  <!-- 浅色玻璃质感侧边栏 -->
   <aside class="w-[240px] flex flex-col select-none relative"
-    style="background: linear-gradient(180deg, hsl(173 25% 12% / 0.92) 0%, hsl(173 25% 8% / 0.95) 100%); backdrop-filter: blur(16px) saturate(120%); -webkit-backdrop-filter: blur(16px) saturate(120%); border-right: 1px solid hsl(173 20% 18% / 0.6);"
+    style="background: linear-gradient(180deg, hsla(173, 25%, 97%, 0.98) 0%, hsla(173, 20%, 96%, 0.98) 100%); backdrop-filter: blur(16px) saturate(120%); -webkit-backdrop-filter: blur(16px) saturate(120%); border-right: 1px solid hsla(173, 15%, 88%, 0.7);"
   >
     <!-- 品牌区 -->
-    <div class="h-14 flex items-center gap-3 px-4 border-b border-white/5 shrink-0">
+    <div class="h-14 flex items-center gap-3 px-4 border-b border-black/5 shrink-0">
       <div class="size-8 rounded-lg flex items-center justify-center shrink-0"
-        style="background: linear-gradient(135deg, hsl(173 75% 41%) 0%, hsl(173 60% 32%) 100%); box-shadow: 0 2px 8px hsl(173 75% 41% / 0.25);">
+        style="background: linear-gradient(135deg, hsl(173, 75%, 41%) 0%, hsl(173, 60%, 32%) 100%); box-shadow: 0 2px 8px hsla(173, 75%, 41%, 0.25);">
         <GraduationCap class="size-4 text-white" />
       </div>
       <div class="min-w-0">
-        <div class="text-sm font-semibold text-white/90 leading-tight">网络控制</div>
-        <div class="text-[10px] text-white/30 leading-tight">教师端</div>
+        <div class="text-sm font-semibold text-slate-700/90 leading-tight">网络控制</div>
+        <div class="text-[10px] text-slate-400 leading-tight">教师端</div>
       </div>
     </div>
 
@@ -22,15 +22,15 @@
         :key="item.path"
         :to="item.path"
         :style="isActive(item.path) ? activeStyle : undefined"
-        class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06] focus:outline-none"
-        :class="{ 'text-white': isActive(item.path) }"
+        class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 focus:outline-none"
+        :class="{ 'text-slate-800': isActive(item.path) }"
       >
         <component :is="item.icon" class="size-4 shrink-0" :stroke-width="isActive(item.path) ? 2.5 : 2" />
         <span>{{ item.label }}</span>
         <span
           v-if="item.badge !== undefined"
           class="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 rounded-full px-1.5 text-[10px] font-semibold"
-          :class="isActive(item.path) ? 'bg-white/20 text-white' : 'bg-white/5 text-white/45'"
+          :class="isActive(item.path) ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-500'"
         >
           {{ item.badge }}
         </span>
@@ -39,15 +39,15 @@
       <!-- 预留扩展区 -->
       <template v-for="group in navGroups" :key="group.label">
         <div class="mt-6 mb-1.5 px-3">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/20">{{ group.label }}</p>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">{{ group.label }}</p>
         </div>
         <RouterLink
           v-for="child in group.children"
           :key="child.path"
           :to="child.path"
           :style="isActive(child.path) ? activeStyle : undefined"
-          class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-white/55 hover:text-white/85 hover:bg-white/[0.06] focus:outline-none"
-          :class="{ 'text-white': isActive(child.path) }"
+          class="flex items-center gap-3 px-3 py-2 rounded-lg border border-transparent text-sm font-medium transition-colors duration-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 focus:outline-none"
+          :class="{ 'text-slate-800': isActive(child.path) }"
         >
           <component :is="child.icon" class="size-4 shrink-0" :stroke-width="isActive(child.path) ? 2.5 : 2" />
           <span>{{ child.label }}</span>
@@ -56,13 +56,13 @@
     </nav>
 
     <!-- 底部 -->
-    <div class="h-11 flex items-center gap-2.5 px-4 border-t border-white/5 shrink-0">
+    <div class="h-11 flex items-center gap-2.5 px-4 border-t border-black/5 shrink-0">
       <div class="size-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white/70 shrink-0"
-        style="background: linear-gradient(135deg, hsl(173 75% 50%) 0%, hsl(173 50% 35%) 100%);">
+        style="background: linear-gradient(135deg, hsl(173, 75%, 45%) 0%, hsl(173, 55%, 35%) 100%);">
         T
       </div>
-      <span class="text-xs text-white/35">教师</span>
-      <span class="ml-auto text-[10px] text-white/20">v1.0.0</span>
+      <span class="text-xs text-slate-400">教师</span>
+      <span class="ml-auto text-[10px] text-slate-300">v1.0.0</span>
     </div>
   </aside>
 </template>
@@ -87,11 +87,11 @@ const route = useRoute()
 
 const isActive = (path: string) => route.path === path
 
-// 激活态：青绿渐变背景 + 内发光 + 微阴影
+// 激活态：青绿渐变背景 + 白色文字 + 柔和阴影
 const activeStyle = {
-  background: 'linear-gradient(135deg, hsl(173 75% 41% / 0.35) 0%, hsl(173 60% 30% / 0.22) 100%)',
-  boxShadow: '0 2px 8px hsl(173 75% 41% / 0.12), inset 0 1px 0 hsl(173 75% 41% / 0.1)',
-  border: '1px solid hsl(173 60% 45% / 0.18)',
+  background: 'linear-gradient(135deg, hsla(173, 75%, 41%, 0.92) 0%, hsla(173, 60%, 34%, 0.92) 100%)',
+  boxShadow: '0 2px 8px hsla(173, 75%, 41%, 0.18), inset 0 1px 0 hsla(173, 75%, 55%, 0.2)',
+  border: '1px solid hsla(173, 60%, 38%, 0.25)',
 }
 
 // ── 当前菜单项 ──

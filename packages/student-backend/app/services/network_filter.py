@@ -96,7 +96,10 @@ def resolve_domain_ips(domain: str) -> list[str]:
     domain = domain.lstrip("*.").strip()
     try:
         infos = socket.getaddrinfo(domain, None)
-        ips = list({info[4][0] for info in infos if ":" not in info[4][0]})
+        ips = list({
+            info[4][0] for info in infos
+            if isinstance(info[4][0], str) and ":" not in info[4][0]
+        })
         return ips
     except Exception:
         return []

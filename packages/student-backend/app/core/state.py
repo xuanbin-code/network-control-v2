@@ -8,7 +8,8 @@ from shared.protocol import FilterMode
 
 class AgentState:
     def __init__(self):
-        self.mode = FilterMode.DISCONNECT
+        # 测试阶段默认完全开放；生产环境可改回 FilterMode.DISCONNECT
+        self.mode = FilterMode.NORMAL
         self.connected = False
         self.controller_ip = ""
         self.controller_url = ""
@@ -24,6 +25,8 @@ class AgentState:
         self.upstream_dns = "114.114.114.114"
         self.last_test_message = ""
         self.last_test_message_ts = 0.0
+        # 供测试页面等本地 API 访问 DNS 服务实例
+        self.dns_server = None
         self._recent_domains: collections.deque = collections.deque(maxlen=50)
         self._domains_lock = threading.Lock()
 

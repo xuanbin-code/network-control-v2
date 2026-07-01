@@ -130,7 +130,10 @@ class NetworkMonitor:
                     self._lock_screen_pid = None
 
                 if not self._network_was_up and self._lock_screen_pid:
-                    if not _is_process_alive(self._lock_screen_pid):
+                    alive = await asyncio.get_event_loop().run_in_executor(
+                        None, _is_process_alive, self._lock_screen_pid
+                    )
+                    if not alive:
                         logger.info("Lock-screen process exited, restarting")
                         self._lock_screen_pid = await asyncio.get_event_loop().run_in_executor(
                             None, _launch_lock_screen, self.unlock_password_hash

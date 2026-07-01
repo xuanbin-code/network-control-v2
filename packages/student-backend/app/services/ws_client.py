@@ -97,6 +97,7 @@ class StudentWebSocketClient:
 
     async def run(self):
         self.running = True
+        loop = asyncio.get_event_loop()
         while self.running:
             try:
                 logger.info(f"Connecting to controller: {self.uri}")
@@ -105,7 +106,7 @@ class StudentWebSocketClient:
                     state.connected = True
                     state.controller_url = self.uri
                     state.controller_ip = parse_controller_ip(self.uri)
-                    state.hostname = socket.gethostname()
+                    state.hostname = await loop.run_in_executor(None, socket.gethostname)
                     state.mac = get_mac()
                     logger.info("Connected to controller")
                     await self._register()
@@ -120,9 +121,11 @@ class StudentWebSocketClient:
                 await asyncio.sleep(self.reconnect_interval)
 
     async def _register(self):
+        loop = asyncio.get_event_loop()
+        local_ip = await loop.run_in_executor(None, get_local_ip)
         await self.send(msg_register(
             hostname=state.hostname,
-            ip=get_local_ip(),
+            ip=local_ip,
             mac=state.mac,
             mode=state.mode,
         ))

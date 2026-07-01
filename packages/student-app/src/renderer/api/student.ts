@@ -22,7 +22,8 @@ export async function updateConfig(data: Record<string, any>) {
 }
 
 export async function applyMode(mode: string) {
-  return instance.post('/apply_mode', { mode })
+  // 模式切换涉及 PowerShell/路由表/DNS 等系统命令，可能耗时数秒，放宽超时
+  return instance.post('/apply_mode', { mode }, { timeout: 30000 })
 }
 
 export async function reloadConfig() {

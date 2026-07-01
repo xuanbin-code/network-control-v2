@@ -121,9 +121,19 @@ function checkBackendReady(port, timeoutMs = 30000) {
   })
 }
 
-function startBackend() {
+async function startBackend() {
   const isDev = !!process.env.VITE_DEV_SERVER_URL
+
+  // 开发模式下若 8772 已有后端运行（例如已手动以管理员启动），则直接复用
   if (isDev) {
+    try {
+      await checkBackendReady(LOCAL_API_PORT, 3000)
+      console.log(`[Dev] 检测到已有学生端后端: http://127.0.0.1:${LOCAL_API_PORT}，跳过启动`)
+      return
+    } catch (err) {
+      // 没有已有后端，继续启动
+    }
+
     const backendDir = path.join(__dirname, '../../../student-backend')
     console.log(`[Dev] 启动学生端后端: python -m app.main (cwd: ${backendDir})`)
     backendProcess = spawn('python', ['-m', 'app.main'], {

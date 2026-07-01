@@ -19,6 +19,8 @@ from dnslib.server import DNSServer, BaseResolver
 
 from shared.protocol import FilterMode
 
+from app.services import focus_reminder
+
 logger = logging.getLogger("dns_server")
 
 
@@ -135,6 +137,11 @@ class FilterResolver(BaseResolver):
             if "." in clean and not clean.endswith(".local") and not clean.startswith("_"):
                 try:
                     self.on_query(clean)
+                except Exception:
+                    pass
+                # DNS 查询也是触发专注提示窗的信号
+                try:
+                    focus_reminder.on_dns_query(clean)
                 except Exception:
                     pass
 

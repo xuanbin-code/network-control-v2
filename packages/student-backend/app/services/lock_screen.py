@@ -535,6 +535,117 @@ class BlackScreenQuiet(QWidget):
             super().keyPressEvent(event)
 
 
+class FocusReminderWindow(QWidget):
+    """专注提示窗 - 访问被拦截网页时弹出全屏提示
+
+    - 全屏、无边框、置顶
+    - 显示"请专心学习，不要访问无关网页"
+    - 倒计时自动关闭，或按 ESC / 点击按钮立即关闭
+    """
+
+    DEFAULT_MESSAGE = "请专心学习，不要访问无关网页"
+
+    def __init__(self, countdown_seconds: int = 8, message: str = ""):
+        super().__init__()
+        self.remaining_seconds = max(1, countdown_seconds)
+        self.message = message or self.DEFAULT_MESSAGE
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._build_ui()
+
+    def _build_ui(self):
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setStyleSheet("QWidget { background-color: #1a1a2e; }")
+        self.showFullScreen()
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(24)
+
+        # 提示图标/emoji
+        icon_label = QLabel("🚫")
+        icon_label.setFont(QFont("Segoe UI Emoji", 72))
+        icon_label.setStyleSheet("QLabel { color: #ffffff; background: transparent; }")
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # 主提示文字
+        msg_label = QLabel(self.message)
+        msg_label.setFont(QFont("微软雅黑", 32, QFont.Weight.Bold))
+        msg_label.setStyleSheet("QLabel { color: #ffffff; background: transparent; }")
+        msg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        msg_label.setWordWrap(True)
+        layout.addWidget(msg_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # 副标题
+        sub_label = QLabel("当前网页与课堂内容无关，已被网络管理系统拦截")
+        sub_label.setFont(QFont("微软雅黑", 16))
+        sub_label.setStyleSheet("QLabel { color: #a0a0a0; background: transparent; }")
+        sub_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub_label.setWordWrap(True)
+        layout.addWidget(sub_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # 倒计时
+        self._countdown_label = QLabel(f"{self.remaining_seconds} 秒后自动关闭")
+        self._countdown_label.setFont(QFont("微软雅黑", 18))
+        self._countdown_label.setStyleSheet("QLabel { color: #f0c040; background: transparent; }")
+        self._countdown_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._countdown_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # 立即关闭按钮
+        close_btn = QPushButton("我知道了")
+        close_btn.setFixedSize(220, 56)
+        close_btn.setFont(QFont("微软雅黑", 14))
+        close_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #2c5aa0;"
+            "  color: #ffffff;"
+            "  border: 2px solid #4a7fc9;"
+            "  border-radius: 8px;"
+            "}"
+            "QPushButton:hover { background-color: #3a6fb8; }"
+            "QPushButton:pressed { background-color: #1e457a; }"
+        )
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self._exit)
+        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self._timer.start(1000)
+
+    def _tick(self):
+        self.remaining_seconds -= 1
+        if self.remaining_seconds <= 0:
+            self._exit()
+        else:
+            self._countdown_label.setText(f"{self.remaining_seconds} 秒后自动关闭")
+
+    def _exit(self):
+        self._timer.stop()
+        self.close()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self._exit()
+        else:
+            super().keyPressEvent(event)
+
+
+def run_focus_reminder(countdown_seconds: int = 8, message: str = ""):
+    """启动专注提示窗（阻塞当前线程）。"""
+    app = QApplication(sys.argv[:1])
+    screens = app.screens()
+    if not screens:
+        print("[run_focus_reminder] 错误：未检测到可用屏幕")
+        sys.exit(1)
+    window = FocusReminderWindow(countdown_seconds=countdown_seconds, message=message)
+    window.show()
+    sys.exit(app.exec())
+
+
 def run_lock_screen(password_hash: str):
     """启动网线拔出锁屏窗口（阻塞当前线程）。"""
     app = QApplication(sys.argv[:1])
@@ -576,21 +687,37 @@ def run_black_screen_quiet(
 
 
 def main():
-    """命令行入口，便于单独测试黑屏安静窗口。
+    """命令行入口，便于单独测试黑屏安静窗口或专注提示窗。
 
     用法：
-        python -m app.services.lock_screen      # 默认 30 秒倒计时
-        python -m app.services.lock_screen 0    # 持续黑屏
-        python -m app.services.lock_screen 60   # 60 秒倒计时
+        python -m app.services.lock_screen                  # 默认 30 秒黑屏倒计时
+        python -m app.services.lock_screen 0                # 持续黑屏
+        python -m app.services.lock_screen 60               # 60 秒黑屏倒计时
+        python -m app.services.lock_screen --focus-reminder            # 8 秒专注提示窗
+        python -m app.services.lock_screen --focus-reminder 10         # 10 秒专注提示窗
     """
     try:
+        args = sys.argv[1:]
+
+        # 专注提示窗模式
+        if args and args[0] == "--focus-reminder":
+            seconds = 8
+            if len(args) > 1:
+                try:
+                    seconds = int(args[1])
+                except ValueError:
+                    print(f"[main] 警告：无法解析专注提示倒计时 '{args[1]}'，使用默认值 8。")
+            run_focus_reminder(countdown_seconds=seconds)
+            return
+
+        # 黑屏安静模式（默认）
         countdown = DEFAULT_BLACK_SCREEN_SECONDS
-        if len(sys.argv) > 1:
+        if args:
             try:
-                value = int(sys.argv[1])
+                value = int(args[0])
                 countdown = value
             except ValueError:
-                print(f"[main] 警告：无法解析倒计时参数 '{sys.argv[1]}'，已使用默认值 {DEFAULT_BLACK_SCREEN_SECONDS}。")
+                print(f"[main] 警告：无法解析倒计时参数 '{args[0]}'，已使用默认值 {DEFAULT_BLACK_SCREEN_SECONDS}。")
         run_black_screen_quiet(countdown)
     except SystemExit:
         raise

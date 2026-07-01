@@ -516,6 +516,12 @@ def _enable_blacklist(blacklist_domains: list[str], upstream_dns: str):
     _enable_network()
     # 黑名单模式由 dns_server 负责拦截，这里只需确保网络正常、DNS 指向本地
     set_adapter_dns("127.0.0.1")
+    clear_dns_cache()
+
+
+def clear_dns_cache():
+    """清除 Windows DNS 客户端缓存，确保模式切换后立即生效。"""
+    _run_ps('Clear-DnsClientCache -ErrorAction SilentlyContinue')
 
 
 def _disable_network(controller_ip: str = "", upstream_dns: str = "114.114.114.114"):

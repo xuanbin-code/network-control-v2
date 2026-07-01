@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from shared.protocol import FilterMode
 
 from app.core.state import state
-from app.services.network_filter import apply_filter_mode
+from app.services.network_filter import apply_filter_mode, clear_dns_cache
 from app.services.tray_icon import current_tray
 
 router = APIRouter()
@@ -44,6 +44,11 @@ async def apply_mode(data: dict):
                 dns.set_mode(FilterMode.NORMAL)
         except Exception:
             pass
+    # 清除 DNS 缓存，避免浏览器使用旧解析结果
+    try:
+        await loop.run_in_executor(None, clear_dns_cache)
+    except Exception:
+        pass
     # 同步托盘图标状态
     if current_tray:
         try:

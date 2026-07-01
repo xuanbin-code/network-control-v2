@@ -88,7 +88,8 @@ class _BlockPageHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        logger.debug(format % args)
+        # 拦截页请求较少且关键，使用 INFO 级别便于排查
+        logger.info(format % args)
 
 
 class BlockPageServer:

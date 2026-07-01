@@ -46,10 +46,18 @@ class FilterResolver(BaseResolver):
         self.block_page_ip = ip
 
     def _block_reply(self, request):
-        """返回本地拦截提示页 IP；未配置时回退到 NXDOMAIN。"""
+        """返回本地拦截提示页 IP；未配置时回退到 NXDOMAIN。
+
+        注意：HTTP 网站会被重定向到提示页；HTTPS 网站由于证书校验限制，
+        浏览器通常会显示证书错误，而无法显示本提示页。
+        """
+        qname = str(request.q.qname).rstrip(".")
         reply = request.reply()
         if self.block_page_ip and request.q.qtype == QTYPE.A:
             reply.add_answer(RR(request.q.qname, QTYPE.A, rdata=A(self.block_page_ip), ttl=30))
+            logger.info(f"[Block redirect] {qname} -> {self.block_page_ip}")
+        else:
+            logger.debug(f"[Block empty] {qname} type={request.q.qtype}, no redirect IP returned")
         # 非 A 查询（如 AAAA）返回空答案，让浏览器回落到 A 记录
         return reply
 

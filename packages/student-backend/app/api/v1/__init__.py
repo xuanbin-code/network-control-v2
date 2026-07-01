@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     status,
     config,
     mode,
+    test_features,
 )
 
 api_router = APIRouter(prefix="/api")
@@ -17,3 +18,4 @@ api_router.include_router(test_message.router)
 api_router.include_router(status.router)
 api_router.include_router(config.router)
 api_router.include_router(mode.router)
+api_router.include_router(test_features.router)

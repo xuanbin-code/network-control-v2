@@ -16,7 +16,7 @@ try:
     PYSTRAY_OK = True
 except ImportError:
     PYSTRAY_OK = False
-    logger.warning("pystray/Pillow 未安装，托盘图标不可用")
+    logger.warning("pystray/Pillow not installed, tray icon unavailable")
 
 try:
     from PyQt6.QtWidgets import QInputDialog, QLineEdit, QApplication
@@ -25,6 +25,9 @@ except ImportError:
     QT_OK = False
 
 DEFAULT_PASSWORD_HASH = hashlib.sha256(b"admin123").hexdigest()
+
+# 全局托盘实例引用，供 ws_client / API 端点在模式切换时更新图标
+current_tray: "AgentTray | None" = None
 
 _STATE_COLORS = {
     FilterMode.NORMAL:     (100, 100, 100),
@@ -82,7 +85,7 @@ class AgentTray:
             if self.on_exit_confirmed:
                 self.on_exit_confirmed()
         else:
-            logger.warning("托盘退出：密码错误")
+            logger.warning("Tray exit: incorrect password")
 
     def _build_menu(self):
         label = _STATE_LABELS.get(self._net_state, "○ 正常上网")
@@ -96,11 +99,11 @@ class AgentTray:
         try:
             self._icon.run()
         except Exception as e:
-            logger.warning(f"托盘图标无法显示（可能运行于无桌面会话）: {e}")
+            logger.warning(f"Tray icon cannot display (possibly running without desktop session): {e}")
 
     def start(self):
         if not PYSTRAY_OK or not self.visible:
-            logger.info("托盘图标已禁用")
+            logger.info("Tray icon disabled")
             return
         color = _STATE_COLORS.get(self._net_state, (100, 100, 100))
         img = _make_icon_image(color)
@@ -108,7 +111,7 @@ class AgentTray:
                                    menu=self._build_menu())
         self._thread = threading.Thread(target=self._run_icon, daemon=True)
         self._thread.start()
-        logger.info("托盘图标已启动")
+        logger.info("Tray icon started")
 
     def stop(self):
         if self._icon:

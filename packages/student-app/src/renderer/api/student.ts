@@ -29,3 +29,15 @@ export async function reloadConfig() {
   const res = await instance.post('/reload_config')
   return res.data
 }
+
+export async function testBlackScreen(countdownSeconds: number) {
+  const res = await instance.post('/test/black_screen', {
+    countdown_seconds: countdownSeconds,
+  })
+  return res.data
+}
+
+export async function sendBlackScreenUnlock() {
+  const res = await instance.post('/test/black_screen_unlock')
+  return res.data.ok === true
+}

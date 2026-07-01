@@ -21,6 +21,7 @@ from shared.protocol import (
 
 from app.core.config import CONFIG
 from app.core.state import state
+from app.services.tray_icon import current_tray
 
 logger = logging.getLogger("ws_client")
 
@@ -91,14 +92,14 @@ class StudentWebSocketClient:
         if not new_uri.rstrip('/').endswith('/ws'):
             new_uri = new_uri.rstrip('/') + '/ws'
         if new_uri != self.uri:
-            logger.info(f"WebSocket 地址已更新: {self.uri} -> {new_uri}")
+            logger.info(f"WebSocket address updated: {self.uri} -> {new_uri}")
             self.uri = new_uri
 
     async def run(self):
         self.running = True
         while self.running:
             try:
-                logger.info(f"连接教师端: {self.uri}")
+                logger.info(f"Connecting to controller: {self.uri}")
                 async with websockets.connect(self.uri, ping_interval=None) as ws:
                     self.ws = ws
                     state.connected = True
@@ -106,16 +107,16 @@ class StudentWebSocketClient:
                     state.controller_ip = parse_controller_ip(self.uri)
                     state.hostname = socket.gethostname()
                     state.mac = get_mac()
-                    logger.info("已连接教师端")
+                    logger.info("Connected to controller")
                     await self._register()
                     await self._recv_loop()
             except Exception as e:
-                logger.warning(f"连接异常: {e}")
+                logger.warning(f"Connection exception: {e}")
             finally:
                 self.ws = None
                 state.connected = False
             if self.running:
-                logger.info(f"{self.reconnect_interval}秒后重连...")
+                logger.info(f"Reconnecting in {self.reconnect_interval} seconds...")
                 await asyncio.sleep(self.reconnect_interval)
 
     async def _register(self):
@@ -165,7 +166,7 @@ class StudentWebSocketClient:
     async def _handle_message(self, data: dict):
         msg_type = data.get("type")
         payload = extract_payload(data)
-        logger.debug(f"收到: {msg_type} {payload}")
+        logger.debug(f"Received: {msg_type} {payload}")
 
         if msg_type == MsgType.SET_FILTER:
             mode = payload.get("mode", FilterMode.NORMAL)
@@ -195,7 +196,7 @@ class StudentWebSocketClient:
             if unlock_pwd_hash:
                 CONFIG["unlock_password_hash"] = unlock_pwd_hash
             if tray_pwd_hash or unlock_pwd_hash:
-                from .config import save_config
+                from app.core.config import save_config
                 save_config(CONFIG)
 
             # 热更新 DNS 规则
@@ -204,7 +205,7 @@ class StudentWebSocketClient:
                 self._dns_server.update_domains(domains)
                 self._dns_server.update_upstream(state.upstream_dns)
 
-            await self.send(msg_ack(True, "规则已应用"))
+            await self.send(msg_ack(True, "Rules applied"))
 
         elif msg_type == MsgType.DISCONNECT:
             await self._apply_mode(FilterMode.DISCONNECT)
@@ -227,7 +228,7 @@ class StudentWebSocketClient:
             logger.info(f"收到测试消息: {content}")
 
     async def _apply_mode(self, mode: str):
-        from .filter.network_filter import apply_filter_mode
+        from app.services.network_filter import apply_filter_mode
         state.set_mode(mode)
         await asyncio.get_event_loop().run_in_executor(
             None,
@@ -239,9 +240,15 @@ class StudentWebSocketClient:
             state.controller_ip,
             state.upstream_dns,
         )
-        # 黑名单模式需要本地 DNS 在过滤状态
+        # Blacklist mode requires local DNS filtering
         if self._dns_server and self._dns_server.running:
             self._dns_server.set_mode(mode)
+        # Sync tray icon state
+        if current_tray:
+            try:
+                current_tray.set_net_state(mode)
+            except Exception:
+                pass
         await self.send(msg_status(
             filter_active=state.filter_active,
             dns_running=self._dns_server.running if self._dns_server else False,
@@ -254,7 +261,7 @@ class StudentWebSocketClient:
             try:
                 await self.ws.send(msg)
             except Exception as e:
-                logger.warning(f"发送失败: {e}")
+                logger.warning(f"Send failed: {e}")
 
     @staticmethod
     def _is_open(ws) -> bool:

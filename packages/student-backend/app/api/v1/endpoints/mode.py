@@ -6,6 +6,7 @@ from shared.protocol import FilterMode
 
 from app.core.state import state
 from app.services.network_filter import apply_filter_mode
+from app.services.tray_icon import current_tray
 
 router = APIRouter()
 
@@ -23,4 +24,10 @@ async def apply_mode(data: dict):
         controller_ip=state.controller_ip,
         upstream_dns=state.upstream_dns,
     )
+    # 同步托盘图标状态
+    if current_tray:
+        try:
+            current_tray.set_net_state(mode)
+        except Exception:
+            pass
     return {"ok": True, "mode": mode}

@@ -200,7 +200,12 @@ class WsManager:
 
     async def send_test_message(self, message: str, targets: Optional[list] = None) -> dict:
         """向指定学生端（或全部）发送测试消息"""
-        return await self.broadcast(msg_test_message(content=message), targets=targets)
+        target_desc = f"{len(targets)} 个目标" if targets else "全部在线学生"
+        print(f"[WS] 发送测试消息到 {target_desc}: {message[:50]}...")
+        result = await self.broadcast(msg_test_message(content=message), targets=targets)
+        print(f"[WS] 测试消息 broadcast 结果: {result['delivered']}/{result['total']} 送达, "
+              f"{result['not_connected']} 离线, {result['failed']} 失败")
+        return result
 
     async def send_black_screen(self, countdown_seconds: int = 30, targets: Optional[list] = None) -> dict:
         """向指定学生端（或全部）发送黑屏指令"""

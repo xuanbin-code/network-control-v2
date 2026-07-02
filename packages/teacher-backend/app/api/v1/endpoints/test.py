@@ -15,7 +15,9 @@ router = APIRouter()
 @router.post("/test/send")
 async def send_test_message(req: TestMessageRequest):
     """向学生端发送测试消息"""
-    result = await ws_manager.send_test_message(req.message, targets=req.targets or None)
+    targets = req.targets or None
+    print(f"[API] 收到测试消息请求: {req.message[:50]}..., targets={targets or 'all'}")
+    result = await ws_manager.send_test_message(req.message, targets=targets)
     return {
         "ok": True,
         "message": req.message,

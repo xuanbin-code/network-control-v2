@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import random
 import socket
 import time
 import uuid
@@ -27,9 +28,12 @@ from app.services.tray_icon import current_tray
 
 logger = logging.getLogger("ws_client")
 
-HEARTBEAT_INTERVAL = 20
-RECONNECT_DELAY = 5
+# 心跳间隔优先从 CONFIG 读取，与教师端保持一致
+HEARTBEAT_INTERVAL = CONFIG.get("heartbeat_interval", 20)
+INITIAL_RECONNECT_DELAY = 2   # 首次重连延迟（秒）
+MAX_RECONNECT_DELAY = 60      # 最大重连延迟（秒）
 BROWSING_INTERVAL = 15
+FILTER_APPLY_DELAY = 0.5      # 连接建立后延迟应用网络规则（秒）
 
 # 当前活跃的 WebSocket 客户端实例，供外部（如调试 API）获取/更新
 _current_client = None
@@ -78,7 +82,7 @@ class StudentWebSocketClient:
             self.uri = self.uri.rstrip('/') + '/ws'
         self.ws = None
         self.running = False
-        self.reconnect_interval = RECONNECT_DELAY
+        self._reconnect_delay = INITIAL_RECONNECT_DELAY
         self._filter_handler = None
         self._dns_server = None
 
@@ -103,7 +107,12 @@ class StudentWebSocketClient:
         while self.running:
             try:
                 logger.info(f"Connecting to controller: {self.uri}")
-                async with websockets.connect(self.uri, ping_interval=None) as ws:
+                async with websockets.connect(
+                    self.uri,
+                    ping_interval=15,     # 客户端发送 WebSocket ping，辅助检测死连接
+                    ping_timeout=20,       # 等待 pong 响应的超时
+                    close_timeout=5,       # 关闭握手超时
+                ) as ws:
                     self.ws = ws
                     state.connected = True
                     state.controller_url = self.uri
@@ -111,6 +120,8 @@ class StudentWebSocketClient:
                     state.hostname = await loop.run_in_executor(None, socket.gethostname)
                     state.mac = get_mac()
                     logger.info("Connected to controller")
+                    # 连接成功后重置重连延迟
+                    self._reconnect_delay = INITIAL_RECONNECT_DELAY
                     await self._register()
                     await self._recv_loop()
             except Exception as e:
@@ -119,8 +130,13 @@ class StudentWebSocketClient:
                 self.ws = None
                 state.connected = False
             if self.running:
-                logger.info(f"Reconnecting in {self.reconnect_interval} seconds...")
-                await asyncio.sleep(self.reconnect_interval)
+                # 指数退避 + 随机抖动
+                delay = self._reconnect_delay
+                jitter = random.uniform(0, delay * 0.3)
+                total_delay = delay + jitter
+                logger.info(f"Reconnecting in {total_delay:.1f} seconds...")
+                await asyncio.sleep(total_delay)
+                self._reconnect_delay = min(delay * 2, MAX_RECONNECT_DELAY)
 
     async def _register(self):
         loop = asyncio.get_event_loop()
@@ -178,6 +194,8 @@ class StudentWebSocketClient:
             enabled = payload.get("enabled", True)
             if not enabled:
                 mode = FilterMode.NORMAL
+            # 短暂延迟确保 WebSocket 连接稳定后再修改网络规则，避免断连循环
+            await asyncio.sleep(FILTER_APPLY_DELAY)
             await self._apply_mode(mode)
 
         elif msg_type == MsgType.UPDATE_RULES:
@@ -285,6 +303,9 @@ class StudentWebSocketClient:
             rule_count=state.rule_count,
             net_state=state.mode,
         ))
+        # 检查网络规则应用后连接是否仍然存活
+        if self.ws and not self._is_open(self.ws):
+            logger.warning("网络规则应用后 WebSocket 连接已断开，将触发重连")
 
     async def send(self, msg: str):
         if self.ws and self._is_open(self.ws):

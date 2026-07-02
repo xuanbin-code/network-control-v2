@@ -78,6 +78,8 @@ async def run_servers():
         host=config.LOCAL_API_HOST,
         port=config.LOCAL_API_PORT,
         log_level="info",
+        ws_ping_interval=0,    # 禁用 uvicorn 内置 ping，由应用层心跳接管
+        ws_ping_timeout=60,
     )
     cfg_external = uvicorn.Config(
         external_app,
@@ -90,6 +92,8 @@ async def run_servers():
         host=config.WS_HOST,
         port=config.WS_PORT,
         log_level="info",
+        ws_ping_interval=0,    # 禁用 uvicorn 内置 ping，由应用层心跳接管
+        ws_ping_timeout=60,
     )
     server_local = uvicorn.Server(cfg_local)
     server_external = uvicorn.Server(cfg_external)

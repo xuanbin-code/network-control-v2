@@ -1,13 +1,16 @@
-# 一键恢复网络脚本
+# One-click Network Restore Script
 #
-# 用途：当 student-backend 异常退出导致网络未恢复时，运行此脚本一键还原：
-#   1. DNS 自动获取
-#   2. 防火墙默认出站策略恢复为 Allow
-#   3. 删除所有 NC_ 前缀的防火墙规则
-#   4. 恢复默认路由（优先读取 gw_backup.json，否则 DHCP 续约）
+# Purpose: When student-backend exits abnormally without restoring network,
+# run this script to restore with one click:
+#   1. DNS to auto-obtain
+#   2. Firewall default outbound policy restored to Allow
+#   3. Delete all NC_ prefixed firewall rules
+#   4. Restore default route (prefer gw_backup.json, fallback DHCP renew)
+#   5. Flush DNS cache
+#   6. Optionally delete old gateway backup file
 #
-# 运行方式（需要管理员权限）：
-#   右键 PowerShell → 以管理员身份运行
+# Usage (admin required):
+#   Right-click PowerShell -> Run as administrator
 #   cd d:\A_MY_CODE_WORK\network-control-v2
 #   .\scripts\restore-network.ps1
 
@@ -16,7 +19,7 @@ param(
 )
 
 function Write-Info($msg) {
-    Write-Host "[恢复网络] $msg" -ForegroundColor Cyan
+    Write-Host "[Restore Network] $msg" -ForegroundColor Cyan
 }
 
 function Write-Ok($msg) {
@@ -27,50 +30,50 @@ function Write-Warn($msg) {
     Write-Host "[WARN] $msg" -ForegroundColor Yellow
 }
 
-# 检查管理员权限
+# Check admin privileges
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Warn "当前不是管理员权限，部分网络恢复操作会失败。"
-    Write-Warn "请右键 PowerShell 选择「以管理员身份运行」后重新执行。"
+    Write-Warn "Not running as admin, some network restore operations will fail."
+    Write-Warn "Right-click PowerShell, select `"Run as administrator`", then re-run."
 }
 
-Write-Info "开始恢复网络..."
+Write-Info "Starting network restore..."
 
-# 1. 恢复 DNS 自动获取
-Write-Info "恢复网卡 DNS 为自动获取..."
+# 1. Restore DNS to auto-obtain
+Write-Info "Restoring adapter DNS to auto-obtain..."
 try {
     Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object {
         Set-DnsClientServerAddress -InterfaceAlias $_.Name -ResetServerAddresses -ErrorAction SilentlyContinue
     }
-    Write-Ok "DNS 已恢复为自动获取"
+    Write-Ok "DNS restored to auto-obtain"
 } catch {
-    Write-Warn "恢复 DNS 失败: $_"
+    Write-Warn "Failed to restore DNS: $_"
 }
 
-# 2. 恢复防火墙默认出站策略
-Write-Info "恢复防火墙默认出站策略为 Allow..."
+# 2. Restore firewall default outbound policy
+Write-Info "Restoring firewall default outbound policy to Allow..."
 try {
     Set-NetFirewallProfile -All -DefaultOutboundAction Allow -ErrorAction Stop
-    Write-Ok "防火墙默认出站策略已恢复为 Allow"
+    Write-Ok "Firewall default outbound policy restored to Allow"
 } catch {
-    Write-Warn "恢复防火墙默认出站策略失败: $_"
+    Write-Warn "Failed to restore firewall default outbound policy: $_"
 }
 
-# 3. 删除 NC_ 前缀防火墙规则
-Write-Info "删除 NC_ 前缀防火墙规则..."
+# 3. Delete NC_ prefixed firewall rules
+Write-Info "Deleting NC_ prefixed firewall rules..."
 try {
     Get-NetFirewallRule | Where-Object { $_.DisplayName -like "NC_*" } | Remove-NetFirewallRule -ErrorAction SilentlyContinue
-    Write-Ok "已删除 NC_ 防火墙规则"
+    Write-Ok "NC_ firewall rules deleted"
 } catch {
-    Write-Warn "删除 NC_ 防火墙规则失败: $_"
+    Write-Warn "Failed to delete NC_ firewall rules: $_"
 }
 
-# 4. 恢复默认路由
-Write-Info "恢复默认路由..."
+# 4. Restore default route
+Write-Info "Restoring default route..."
 $backupFile = Join-Path $BackendDir "gw_backup.json"
 $pythonAvailable = $false
 
-# 优先尝试用 Python 恢复（会读取 gw_backup.json）
+# Prefer Python restore (reads gw_backup.json)
 try {
     $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
     if (-not $pythonCmd) {
@@ -93,65 +96,65 @@ except Exception as e:
         Pop-Location
 
         if ($result -like "*ROUTE_RESTORED*") {
-            Write-Ok "默认路由已通过 Python 恢复"
+            Write-Ok "Default route restored via Python"
             $pythonAvailable = $true
         } else {
-            Write-Warn "Python 恢复路由失败: $result"
+            Write-Warn "Python route restore failed: $result"
         }
     }
 } catch {
-    Write-Warn "调用 Python 恢复路由失败: $_"
+    Write-Warn "Failed to invoke Python for route restore: $_"
 }
 
-# 兜底：删除残留默认路由 + DHCP 续约
+# Fallback: delete leftover default routes + DHCP renew
 if (-not $pythonAvailable) {
-    Write-Info "尝试通过 DHCP 续约恢复路由..."
+    Write-Info "Attempting route restore via DHCP renew..."
     try {
-        # 先删除所有 0.0.0.0/0 路由（避免冲突）
+        # Delete all 0.0.0.0/0 routes first (avoid conflicts)
         Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
             Remove-NetRoute -Confirm:$false -ErrorAction SilentlyContinue
 
-        # 对每张在线网卡执行 DHCP 续约
+        # DHCP renew on every online (non-loopback) adapter
         Get-NetAdapter | Where-Object { $_.Status -eq "Up" -and $_.Name -notmatch "Loopback" } | ForEach-Object {
             ipconfig /renew $_.Name | Out-Null
         }
-        Write-Ok "DHCP 续约完成"
+        Write-Ok "DHCP renew complete"
     } catch {
-        Write-Warn "DHCP 续约失败: $_"
+        Write-Warn "DHCP renew failed: $_"
     }
 }
 
-# 5. 清理 DNS 缓存
-Write-Info "清理 DNS 缓存..."
+# 5. Flush DNS cache
+Write-Info "Flushing DNS cache..."
 try {
     Clear-DnsClientCache -ErrorAction SilentlyContinue
-    Write-Ok "DNS 缓存已清理"
+    Write-Ok "DNS cache flushed"
 } catch {
-    Write-Warn "清理 DNS 缓存失败: $_"
+    Write-Warn "Failed to flush DNS cache: $_"
 }
 
-# 6. 可选：删除网关备份文件
+# 6. Optionally delete old gateway backup file
 if (Test-Path $backupFile) {
-    Write-Info "删除旧的网关备份文件..."
+    Write-Info "Deleting old gateway backup file..."
     try {
         Remove-Item $backupFile -Force -ErrorAction SilentlyContinue
-        Write-Ok "已删除 gw_backup.json"
+        Write-Ok "Deleted gw_backup.json"
     } catch {
-        Write-Warn "删除 gw_backup.json 失败: $_"
+        Write-Warn "Failed to delete gw_backup.json: $_"
     }
 }
 
-Write-Info "网络恢复脚本执行完毕。"
-Write-Info "如果仍无法上网，请尝试重启电脑。"
+Write-Info "Network restore script completed."
+Write-Info "If you still cannot access the internet, try restarting your computer."
 
-# 显示当前默认路由和 DNS 供检查
+# Display current default route and DNS for inspection
 Write-Host ""
-Write-Host "===== 当前默认路由 =====" -ForegroundColor Gray
+Write-Host "===== Current Default Route =====" -ForegroundColor Gray
 Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
     Select-Object -Property InterfaceAlias, NextHop, RouteMetric |
     Format-Table -AutoSize
 
-Write-Host "===== 当前 DNS 设置 =====" -ForegroundColor Gray
+Write-Host "===== Current DNS Settings =====" -ForegroundColor Gray
 Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
     Where-Object { $_.ServerAddresses } |
     Select-Object -Property InterfaceAlias, ServerAddresses |

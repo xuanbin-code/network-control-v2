@@ -8,10 +8,10 @@ set "BACKEND=%ROOT%\packages\student-backend"
 cd /d "%BACKEND%"
 
 if not exist "dist\student-backend.exe" (
-    echo 未找到学生端程序
+    echo Student app not found
     exit /b 1
 )
 
 dist\student-backend.exe stop
 dist\student-backend.exe remove
-echo 服务已卸载
+echo Service uninstalled

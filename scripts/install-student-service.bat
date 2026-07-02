@@ -8,16 +8,16 @@ set "BACKEND=%ROOT%\packages\student-backend"
 cd /d "%BACKEND%"
 
 if not exist "dist\student-backend.exe" (
-    echo 请先运行 build-student.bat 打包学生端
+    echo Run build-student.bat first to package the student app
     exit /b 1
 )
 
-echo 正在安装 Windows 服务 NetControlAgent...
+echo Installing Windows service NetControlAgent...
 dist\student-backend.exe install
 if errorlevel 1 (
-    echo 服务安装失败，请以管理员身份运行
+    echo Service install failed, run as administrator
     exit /b 1
 )
 
 dist\student-backend.exe start
-echo 服务安装并启动完成
+echo Service installed and started

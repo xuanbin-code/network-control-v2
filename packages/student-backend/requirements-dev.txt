@@ -1,0 +1,5 @@
+# 学生端后端开发依赖
+-r requirements.txt
+
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

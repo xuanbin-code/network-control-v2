@@ -8,6 +8,21 @@
       </AlertDescription>
     </Alert>
 
+    <Dialog v-model:open="dialogOpen">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Mail class="size-5" />
+            教师端消息
+          </DialogTitle>
+          <DialogDescription class="text-base text-foreground whitespace-pre-wrap pt-2">
+            {{ dialogMessage }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter showCloseButton />
+      </DialogContent>
+    </Dialog>
+
     <Card>
       <CardHeader>
         <CardTitle>运行状态</CardTitle>
@@ -90,19 +105,49 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
+import { Mail } from '@lucide/vue'
 import { useStudentStore } from '@/stores/student'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 const store = useStudentStore()
 let timer: number | undefined
 
+const dialogOpen = ref(false)
+const dialogMessage = ref('')
+
 onMounted(() => {
   store.fetchStatus()
   timer = window.setInterval(() => store.fetchStatus(), 3000)
+})
+
+// 最近 60 秒内收到的教师端测试消息
+const recentTestMessage = computed(() => {
+  const msg = store.status.last_test_message
+  const ts = store.status.last_test_message_ts
+  if (!msg || !ts) return ''
+  const now = Date.now() / 1000
+  if (now - ts > 60) return ''
+  return msg
+})
+
+// 收到新消息时自动弹窗
+watch(recentTestMessage, (newMsg) => {
+  if (newMsg) {
+    dialogMessage.value = newMsg
+    dialogOpen.value = true
+  }
 })
 
 onUnmounted(() => {

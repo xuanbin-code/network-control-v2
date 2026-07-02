@@ -231,6 +231,7 @@ class StudentWebSocketClient:
             state.last_test_message = content
             state.last_test_message_ts = time.time()
             logger.info(f"收到测试消息: {content}")
+            await self.send(msg_ack(True, f"Test message received"))
 
         elif msg_type == MsgType.BLACK_SCREEN:
             countdown = payload.get("countdown_seconds", 30)

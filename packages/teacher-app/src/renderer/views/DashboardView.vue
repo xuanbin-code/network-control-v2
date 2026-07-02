@@ -283,7 +283,7 @@
           <DialogFooter>
             <Button variant="outline" @click="blackScreenVisible = false">取消</Button>
             <Button
-              :disabled="blackScreenLoading || blackScreenCountdown < 0"
+              :disabled="blackScreenLoading || !Number.isFinite(blackScreenCountdown) || blackScreenCountdown < 0"
               @click="doSendBlackScreen"
               variant="destructive"
             >
@@ -467,14 +467,22 @@ function openBlackScreenDialog(ip: string) {
 }
 
 async function doSendBlackScreen() {
+  // 规范化倒计时：空值或非数字时回退到 30 秒
+  let countdown = Number(blackScreenCountdown.value)
+  if (!Number.isFinite(countdown) || countdown < 0) {
+    countdown = 30
+  }
+  countdown = Math.floor(countdown)
+
   blackScreenLoading.value = true
   try {
     const targets = blackScreenTargetIp.value ? [blackScreenTargetIp.value] : undefined
-    await store.blackScreen(blackScreenCountdown.value, targets)
+    await store.blackScreen(countdown, targets)
     blackScreenVisible.value = false
     toast.success('黑屏指令已下发')
-  } catch {
-    toast.error('黑屏指令下发失败')
+  } catch (err: any) {
+    const msg = err?.response?.data?.detail || '黑屏指令下发失败'
+    toast.error(msg)
   } finally {
     blackScreenLoading.value = false
   }

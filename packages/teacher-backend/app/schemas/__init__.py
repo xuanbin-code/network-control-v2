@@ -5,6 +5,8 @@ from app.schemas.requests import (
     RuleCreateRequest,
     SettingUpdateRequest,
     TestMessageRequest,
+    BlackScreenRequest,
+    BlackScreenUnlockRequest,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "RuleCreateRequest",
     "SettingUpdateRequest",
     "TestMessageRequest",
+    "BlackScreenRequest",
+    "BlackScreenUnlockRequest",
 ]

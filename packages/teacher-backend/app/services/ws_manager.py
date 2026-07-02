@@ -28,6 +28,7 @@ class StudentConnection:
         self.mac = ""
         self.mode = FilterMode.DISCONNECT
         self.last_heartbeat = time.time()
+        self.last_ack = None  # {"ok": bool, "message": str, "ts": float}
 
 
 class WsManager:
@@ -62,16 +63,34 @@ class WsManager:
         )
         print(f"[WS] 学生端断开: {conn.ip}")
 
-    async def broadcast(self, message: str, targets: Optional[list] = None):
-        recipients = [self.students[ip] for ip in (targets or self.students.keys()) if ip in self.students]
+    async def broadcast(self, message: str, targets: Optional[list] = None) -> dict:
+        # 区分「未连接」和「已连接但发送失败」
+        if targets is None:
+            requested_ips = list(self.students.keys())
+            not_connected = []
+        else:
+            requested_ips = list(targets)
+            not_connected = [ip for ip in requested_ips if ip not in self.students]
+
+        connected_ips = [ip for ip in requested_ips if ip in self.students]
+        recipients = [self.students[ip] for ip in connected_ips]
         dead = []
+        delivered = 0
         for conn in recipients:
             try:
                 await conn.ws.send_text(message)
+                delivered += 1
             except Exception:
                 dead.append(conn)
         for conn in dead:
             await self.disconnect(conn)
+
+        return {
+            "total": len(requested_ips),
+            "delivered": delivered,
+            "failed": len(dead),
+            "not_connected": len(not_connected),
+        }
 
     async def handle_message(self, conn: StudentConnection, data: dict):
         # 忽略已被替换的连接发来的消息，防止孤儿连接写入 DB
@@ -128,6 +147,12 @@ class WsManager:
                 (conn.mode, time.time(), conn.ip),
             )
 
+        elif msg_type == MsgType.ACK:
+            ok = payload.get("ok", False)
+            message = payload.get("message", "")
+            conn.last_ack = {"ok": ok, "message": message, "ts": time.time()}
+            print(f"[WS] ACK from {conn.ip}: ok={ok}, {message}")
+
         elif msg_type == MsgType.BROWSING_UPDATE:
             domains = payload.get("domains", [])
             ts = time.time()
@@ -161,9 +186,9 @@ class WsManager:
             "unlock_pwd_hash": settings.get("unlock_password_hash", ""),
         }
 
-    async def push_rules(self, targets: Optional[list] = None):
+    async def push_rules(self, targets: Optional[list] = None) -> dict:
         payload = await self._build_rules_payload()
-        await self.broadcast(msg_update_rules(
+        return await self.broadcast(msg_update_rules(
             domains=payload["domains"],
             lan_subnets=payload["lan_subnets"],
             controller_ip=payload["controller_ip"],
@@ -173,27 +198,28 @@ class WsManager:
             unlock_pwd_hash=payload.get("unlock_pwd_hash", ""),
         ), targets=targets)
 
-    async def send_test_message(self, message: str, targets: Optional[list] = None):
+    async def send_test_message(self, message: str, targets: Optional[list] = None) -> dict:
         """向指定学生端（或全部）发送测试消息"""
-        await self.broadcast(msg_test_message(content=message), targets=targets)
+        return await self.broadcast(msg_test_message(content=message), targets=targets)
 
-    async def send_black_screen(self, countdown_seconds: int = 30, targets: Optional[list] = None):
+    async def send_black_screen(self, countdown_seconds: int = 30, targets: Optional[list] = None) -> dict:
         """向指定学生端（或全部）发送黑屏指令"""
-        await self.broadcast(msg_black_screen(countdown_seconds=countdown_seconds), targets=targets)
+        return await self.broadcast(msg_black_screen(countdown_seconds=countdown_seconds), targets=targets)
 
-    async def send_black_screen_unlock(self, targets: Optional[list] = None):
+    async def send_black_screen_unlock(self, targets: Optional[list] = None) -> dict:
         """向指定学生端（或全部）发送解除黑屏指令"""
-        await self.broadcast(msg_black_screen_unlock(), targets=targets)
+        return await self.broadcast(msg_black_screen_unlock(), targets=targets)
 
-    async def set_filter(self, mode: str, targets: Optional[list] = None):
+    async def set_filter(self, mode: str, targets: Optional[list] = None) -> dict:
         enabled = mode != FilterMode.NORMAL
-        await self.broadcast(msg_set_filter(enabled=enabled, mode=mode), targets=targets)
+        result = await self.broadcast(msg_set_filter(enabled=enabled, mode=mode), targets=targets)
         db = get_db()
         if not targets:
             await db.execute("UPDATE machines SET mode = ?", (mode,))
         else:
             for ip in targets:
                 await db.execute("UPDATE machines SET mode = ? WHERE ip = ?", (mode, ip))
+        return result
 
     async def cleanup_offline(self):
         while True:

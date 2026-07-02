@@ -82,15 +82,15 @@ export const useTeacherStore = defineStore('teacher', () => {
   }
 
   async function testMessage(message: string, targets?: string[]) {
-    await sendTestMessage(message, targets)
+    return await sendTestMessage(message, targets)
   }
 
   async function blackScreen(countdownSeconds: number = 30, targets?: string[]) {
-    await sendBlackScreen(countdownSeconds, targets)
+    return await sendBlackScreen(countdownSeconds, targets)
   }
 
   async function blackScreenUnlock(targets?: string[]) {
-    await sendBlackScreenUnlock(targets)
+    return await sendBlackScreenUnlock(targets)
   }
 
   return {

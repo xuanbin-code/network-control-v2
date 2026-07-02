@@ -450,9 +450,24 @@ async function doSendTest() {
   sending.value = true
   try {
     const targets = testTargetIp.value ? [testTargetIp.value] : undefined
-    await store.testMessage(testMessage.value.trim(), targets)
+    const res = await store.testMessage(testMessage.value.trim(), targets)
     testVisible.value = false
-    toast.success('测试消息已发送')
+
+    const delivery = res?.data?.delivery
+    if (delivery) {
+      const { total, delivered, not_connected } = delivery
+      if (delivered === total && total > 0) {
+        toast.success(`测试消息已发送到 ${delivered} 个学生端`)
+      } else if (delivered > 0) {
+        toast.warning(`测试消息已发送到 ${delivered}/${total} 个学生端，${not_connected} 个离线`)
+      } else if (total === 0) {
+        toast.info('没有在线的学生端，测试消息未发送')
+      } else {
+        toast.error(`测试消息下发失败：所有 ${total} 个目标学生端均不在线`)
+      }
+    } else {
+      toast.success('测试消息已发送')
+    }
   } catch {
     toast.error('发送失败，请稍后重试')
   } finally {
@@ -477,9 +492,27 @@ async function doSendBlackScreen() {
   blackScreenLoading.value = true
   try {
     const targets = blackScreenTargetIp.value ? [blackScreenTargetIp.value] : undefined
-    await store.blackScreen(countdown, targets)
+    const res = await store.blackScreen(countdown, targets)
     blackScreenVisible.value = false
-    toast.success('黑屏指令已下发')
+
+    const delivery = res?.data?.delivery
+    if (delivery) {
+      const { total, delivered, not_connected, failed } = delivery
+      if (delivered === total && total > 0) {
+        toast.success(`黑屏指令已下发到 ${delivered} 个学生端`)
+      } else if (delivered > 0) {
+        const parts: string[] = [`已下发到 ${delivered}/${total} 个学生端`]
+        if (not_connected > 0) parts.push(`${not_connected} 个离线`)
+        if (failed > 0) parts.push(`${failed} 个发送失败`)
+        toast.warning(`黑屏指令部分送达：${parts.join('，')}`)
+      } else if (total === 0) {
+        toast.info('没有在线的学生端，黑屏指令未发送')
+      } else {
+        toast.error(`黑屏指令下发失败：所有 ${total} 个目标学生端均不在线`)
+      }
+    } else {
+      toast.success('黑屏指令已下发')
+    }
   } catch (err: any) {
     const msg = err?.response?.data?.detail || '黑屏指令下发失败'
     toast.error(msg)
@@ -490,8 +523,13 @@ async function doSendBlackScreen() {
 
 async function handleBlackScreenUnlock(ip: string) {
   try {
-    await store.blackScreenUnlock([ip])
-    toast.success('解除黑屏指令已下发')
+    const res = await store.blackScreenUnlock([ip])
+    const delivery = res?.data?.delivery
+    if (delivery && delivery.delivered === 0) {
+      toast.error('解除黑屏指令下发失败：学生端不在线')
+    } else {
+      toast.success('解除黑屏指令已下发')
+    }
   } catch {
     toast.error('解除黑屏指令下发失败')
   }

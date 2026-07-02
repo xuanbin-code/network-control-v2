@@ -101,8 +101,27 @@ async def run_servers():
     )
 
 
-def main():
+def _run_servers():
     asyncio.run(run_servers())
+
+
+def main():
+    BASE_DIR = Path(__file__).resolve().parent.parent  # teacher-backend/
+    SHARED_DIR = BASE_DIR.parent / "shared"             # packages/shared/
+    is_dev = not getattr(sys, 'frozen', False)
+
+    if is_dev:
+        try:
+            from watchfiles import run_process
+            print(f"[Teacher Backend] Dev mode — 监视文件变更自动重启...")
+            print(f"  监视目录: {BASE_DIR}")
+            print(f"  监视目录: {SHARED_DIR}")
+            run_process(str(BASE_DIR), str(SHARED_DIR), target=_run_servers)
+        except ImportError:
+            print("[Teacher Backend] watchfiles 未安装，热更新不可用")
+            _run_servers()
+    else:
+        _run_servers()
 
 
 if __name__ == "__main__":

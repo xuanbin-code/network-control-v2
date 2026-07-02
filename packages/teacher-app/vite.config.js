@@ -5,6 +5,19 @@ import renderer from 'vite-plugin-electron-renderer'
 import { resolve } from 'path'
 
 export default defineConfig({
+  server: {
+    port: 5173,
+    strictPort: true,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+    },
+    watch: {
+      // Windows 上部分文件系统需要轮询才能检测到变更
+      usePolling: true,
+      interval: 500,
+    },
+  },
   plugins: [
     vue(),
     electron([

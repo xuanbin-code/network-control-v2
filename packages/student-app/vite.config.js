@@ -15,6 +15,15 @@ export default defineConfig(({ mode }) => {
     server: {
       port: devPort,
       strictPort: true,
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+      },
+      watch: {
+        // Windows 上部分文件系统需要轮询才能检测到变更
+        usePolling: true,
+        interval: 500,
+      },
     },
     plugins: [
       vue(),

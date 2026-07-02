@@ -182,14 +182,7 @@ async def run_agent():
         monitor.stop()
 
 
-def main():
-    # Lock screen mode
-    if len(sys.argv) >= 2 and sys.argv[1] == "--lock":
-        hash_val = sys.argv[2] if len(sys.argv) > 2 else hashlib.sha256(b"admin123").hexdigest()
-        from app.services.lock_screen import run_lock_screen
-        run_lock_screen(hash_val)
-        return
-
+def _run_agent():
     try:
         asyncio.run(run_agent())
     except KeyboardInterrupt:
@@ -198,6 +191,32 @@ def main():
         apply_filter_mode(FilterMode.NORMAL)
         dns_server.stop()
         ws_client.stop()
+
+
+def main():
+    # Lock screen mode
+    if len(sys.argv) >= 2 and sys.argv[1] == "--lock":
+        hash_val = sys.argv[2] if len(sys.argv) > 2 else hashlib.sha256(b"admin123").hexdigest()
+        from app.services.lock_screen import run_lock_screen
+        run_lock_screen(hash_val)
+        return
+
+    BASE_DIR = Path(__file__).resolve().parent.parent  # student-backend/
+    SHARED_DIR = BASE_DIR.parent / "shared"              # packages/shared/
+    is_dev = not getattr(sys, 'frozen', False)
+
+    if is_dev:
+        try:
+            from watchfiles import run_process
+            print(f"[Student Backend] Dev mode — 监视文件变更自动重启...")
+            print(f"  监视目录: {BASE_DIR}")
+            print(f"  监视目录: {SHARED_DIR}")
+            run_process(str(BASE_DIR), str(SHARED_DIR), target=_run_agent)
+        except ImportError:
+            print("[Student Backend] watchfiles 未安装，热更新不可用")
+            _run_agent()
+    else:
+        _run_agent()
 
 
 if __name__ == "__main__":

@@ -76,6 +76,14 @@ export async function sendTestMessage(message: string, targets?: string[]) {
   return instance.post('/test/send', { message, targets })
 }
 
+export async function sendBlackScreen(countdownSeconds: number = 30, targets?: string[]) {
+  return instance.post('/test/black_screen', { countdown_seconds: countdownSeconds, targets })
+}
+
+export async function sendBlackScreenUnlock(targets?: string[]) {
+  return instance.post('/test/black_screen_unlock', { targets })
+}
+
 export async function getServerInfo() {
   const res = await instance.get('/server_info')
   return res.data

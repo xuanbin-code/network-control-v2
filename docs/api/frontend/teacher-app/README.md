@@ -32,6 +32,8 @@ const BASE = 'http://127.0.0.1:8771/api'
 | `updateSetting(key, value)` | `POST /settings` | 更新系统设置 |
 | `scanNetwork(subnet)` | `GET /scan` | 扫描网段 |
 | `sendTestMessage(message, targets?)` | `POST /test/send` | 发送测试消息 |
+| `sendBlackScreen(countdownSeconds?, targets?)` | `POST /test/black_screen` | 发送黑屏指令 |
+| `sendBlackScreenUnlock(targets?)` | `POST /test/black_screen_unlock` | 发送解除黑屏指令 |
 | `getServerInfo()` | `GET /server_info` | 获取服务器信息 |
 
 ---

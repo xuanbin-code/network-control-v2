@@ -11,6 +11,8 @@ from shared.protocol import (
     msg_update_rules,
     msg_set_filter,
     msg_test_message,
+    msg_black_screen,
+    msg_black_screen_unlock,
     extract_payload,
 )
 
@@ -174,6 +176,14 @@ class WsManager:
     async def send_test_message(self, message: str, targets: Optional[list] = None):
         """向指定学生端（或全部）发送测试消息"""
         await self.broadcast(msg_test_message(content=message), targets=targets)
+
+    async def send_black_screen(self, countdown_seconds: int = 30, targets: Optional[list] = None):
+        """向指定学生端（或全部）发送黑屏指令"""
+        await self.broadcast(msg_black_screen(countdown_seconds=countdown_seconds), targets=targets)
+
+    async def send_black_screen_unlock(self, targets: Optional[list] = None):
+        """向指定学生端（或全部）发送解除黑屏指令"""
+        await self.broadcast(msg_black_screen_unlock(), targets=targets)
 
     async def set_filter(self, mode: str, targets: Optional[list] = None):
         enabled = mode != FilterMode.NORMAL

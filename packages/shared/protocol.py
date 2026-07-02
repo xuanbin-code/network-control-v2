@@ -22,6 +22,8 @@ class MsgType:
     RECONNECT = "reconnect"
     GET_STATUS = "get_status"
     TEST_MESSAGE = "test_message"
+    BLACK_SCREEN = "black_screen"
+    BLACK_SCREEN_UNLOCK = "black_screen_unlock"
 
 
 class FilterMode:
@@ -155,3 +157,19 @@ def msg_test_message(content: str) -> str:
     return make_msg(MsgType.TEST_MESSAGE, payload={
         "content": content,
     })
+
+
+def msg_black_screen(countdown_seconds: int = 30) -> str:
+    """教师端远程触发学生端黑屏安静窗口。
+
+    Args:
+        countdown_seconds: 倒计时秒数；0 表示持续黑屏，需手动/IPC 解除。
+    """
+    return make_msg(MsgType.BLACK_SCREEN, payload={
+        "countdown_seconds": countdown_seconds,
+    })
+
+
+def msg_black_screen_unlock() -> str:
+    """教师端远程解除学生端黑屏安静窗口。"""
+    return make_msg(MsgType.BLACK_SCREEN_UNLOCK)

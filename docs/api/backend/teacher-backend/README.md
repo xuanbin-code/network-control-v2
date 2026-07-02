@@ -25,6 +25,8 @@
 | `/browsing/{ip}` | GET | 查询某学生机的浏览记录 |
 | `/settings` | GET / POST | 获取/更新系统设置 |
 | `/test/send` | POST | 向学生端发送测试消息 |
+| `/test/black_screen` | POST | 向学生端发送黑屏指令 |
+| `/test/black_screen_unlock` | POST | 向学生端发送解除黑屏指令 |
 
 ---
 
@@ -49,6 +51,8 @@
 | `set_filter` | 设置网络模式 |
 | `update_rules` | 更新规则 |
 | `test_message` | 测试消息 |
+| `black_screen` | 黑屏安静测试 |
+| `black_screen_unlock` | 解除黑屏 |
 | `disconnect` | 断开连接 |
 | `reconnect` | 恢复连接 |
 | `get_status` | 查询状态 |

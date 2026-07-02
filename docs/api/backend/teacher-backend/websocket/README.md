@@ -45,6 +45,8 @@
   - [`set_filter`](teacher-to-student/set-filter.md)
   - [`update_rules`](teacher-to-student/update-rules.md)
   - [`test_message`](teacher-to-student/test-message.md)
+  - [`black_screen`](teacher-to-student/black-screen.md)
+  - [`black_screen_unlock`](teacher-to-student/black-screen-unlock.md)
   - [`disconnect`](teacher-to-student/disconnect.md)
   - [`reconnect`](teacher-to-student/reconnect.md)
   - [`get_status`](teacher-to-student/get-status.md)

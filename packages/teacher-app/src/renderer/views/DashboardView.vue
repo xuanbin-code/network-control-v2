@@ -187,6 +187,15 @@
                     <MessageSquare class="size-3.5 mr-2" />
                     测试消息
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem @select="openBlackScreenDialog(row.ip)">
+                    <MonitorOff class="size-3.5 mr-2" />
+                    黑屏测试
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @select="handleBlackScreenUnlock(row.ip)">
+                    <Monitor class="size-3.5 mr-2" />
+                    解除黑屏
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -243,6 +252,43 @@
             <Button :disabled="!testMessage.trim() || sending" @click="doSendTest">
               <Loader2 v-if="sending" class="size-3.5 mr-1 animate-spin" />
               {{ sending ? '发送中...' : '发送' }}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- ═══ 黑屏测试对话框 ═══ -->
+    <Dialog v-model:open="blackScreenVisible">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>黑屏安静测试</DialogTitle>
+          <DialogDescription>目标: {{ blackScreenTargetIp || '全部在线学生端' }}</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div>
+            <Label for="black-screen-countdown">倒计时秒数</Label>
+            <Input
+              id="black-screen-countdown"
+              v-model.number="blackScreenCountdown"
+              type="number"
+              min="0"
+              placeholder="30"
+              class="mt-2"
+            />
+            <p class="text-xs text-muted-foreground mt-1.5">
+              0 表示持续黑屏，需通过「解除黑屏」手动关闭。
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="blackScreenVisible = false">取消</Button>
+            <Button
+              :disabled="blackScreenLoading || blackScreenCountdown < 0"
+              @click="doSendBlackScreen"
+              variant="destructive"
+            >
+              <Loader2 v-if="blackScreenLoading" class="size-3.5 mr-1 animate-spin" />
+              {{ blackScreenLoading ? '发送中...' : '启动黑屏' }}
             </Button>
           </DialogFooter>
         </div>
@@ -357,6 +403,12 @@ const testTargetIp = ref('')
 const testMessage = ref('')
 const sending = ref(false)
 
+// ── 黑屏测试 ──
+const blackScreenVisible = ref(false)
+const blackScreenTargetIp = ref('')
+const blackScreenCountdown = ref(30)
+const blackScreenLoading = ref(false)
+
 // ── 轮询 ──
 let timer: number | undefined
 
@@ -405,6 +457,35 @@ async function doSendTest() {
     toast.error('发送失败，请稍后重试')
   } finally {
     sending.value = false
+  }
+}
+
+function openBlackScreenDialog(ip: string) {
+  blackScreenTargetIp.value = ip
+  blackScreenCountdown.value = 30
+  blackScreenVisible.value = true
+}
+
+async function doSendBlackScreen() {
+  blackScreenLoading.value = true
+  try {
+    const targets = blackScreenTargetIp.value ? [blackScreenTargetIp.value] : undefined
+    await store.blackScreen(blackScreenCountdown.value, targets)
+    blackScreenVisible.value = false
+    toast.success('黑屏指令已下发')
+  } catch {
+    toast.error('黑屏指令下发失败')
+  } finally {
+    blackScreenLoading.value = false
+  }
+}
+
+async function handleBlackScreenUnlock(ip: string) {
+  try {
+    await store.blackScreenUnlock([ip])
+    toast.success('解除黑屏指令已下发')
+  } catch {
+    toast.error('解除黑屏指令下发失败')
   }
 }
 

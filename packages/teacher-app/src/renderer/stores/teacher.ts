@@ -4,7 +4,7 @@ import {
   getMachines, getRules, getSettings, scanNetwork,
   setNetwork, enableNetwork, disableNetwork, enableIp, disableIp,
   addRule, deleteRule, toggleRule, updateSetting,
-  sendTestMessage, getServerInfo,
+  sendTestMessage, sendBlackScreen, sendBlackScreenUnlock, getServerInfo,
 } from '@/api/teacher'
 
 export const useTeacherStore = defineStore('teacher', () => {
@@ -85,11 +85,19 @@ export const useTeacherStore = defineStore('teacher', () => {
     await sendTestMessage(message, targets)
   }
 
+  async function blackScreen(countdownSeconds: number = 30, targets?: string[]) {
+    await sendBlackScreen(countdownSeconds, targets)
+  }
+
+  async function blackScreenUnlock(targets?: string[]) {
+    await sendBlackScreenUnlock(targets)
+  }
+
   return {
     machines, rules, settings, serverInfo, loading,
     fetchMachines, fetchRules, fetchSettings, fetchServerInfo,
     setMode, enableAll, disableAll, enableSingle, disableSingle,
     createRule, removeRule, switchRule, saveSetting, scanSubnet,
-    testMessage,
+    testMessage, blackScreen, blackScreenUnlock,
   }
 })

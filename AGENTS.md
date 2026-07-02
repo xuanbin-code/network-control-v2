@@ -342,7 +342,7 @@ scripts\uninstall-student-service.bat
 关键常量：
 
 - `MsgType.REGISTER / HEARTBEAT / STATUS / ACK / BROWSING_UPDATE`（学生→教师）
-- `MsgType.UPDATE_RULES / SET_FILTER / DISCONNECT / RECONNECT / GET_STATUS`（教师→学生）
+- `MsgType.UPDATE_RULES / SET_FILTER / TEST_MESSAGE / BLACK_SCREEN / BLACK_SCREEN_UNLOCK / DISCONNECT / RECONNECT / GET_STATUS`（教师→学生）
 - `FilterMode.NORMAL / WHITELIST / BLACKLIST / DISCONNECT`
 - `DEFAULT_WS_PORT = 8765`，`DEFAULT_API_PORT = 8770`，`DEFAULT_LOCAL_API_PORT_TEACHER = 8771`，`DEFAULT_LOCAL_API_PORT_STUDENT = 8772`
 - `HEARTBEAT_INTERVAL = 20`，`HEARTBEAT_TIMEOUT = 60`
@@ -488,7 +488,7 @@ GET      /api/health                  # 健康检查
 
 - **新增 shadcn-vue 组件**：在两个前端包内分别使用 CLI 安装，例如 `cd packages/teacher-app && npx shadcn-vue@latest add button`。组件统一放在 `src/renderer/components/ui/`。
 - **新增 API**：教师端与学生端均优先在 `app/api/v1/endpoints/` 下新增资源文件，然后在 `app/api/v1/__init__.py` 中聚合。并在对应前端 `api/*.ts` 与 Store 中调用。
-- **新增 WebSocket 消息类型**：在 `packages/shared/protocol.py` 的 `MsgType` 中定义常量，并补充 `msg_*` 辅助函数；两端分别处理收发。
+- **新增 WebSocket 消息类型**：在 `packages/shared/protocol.py` 的 `MsgType` 中定义常量，并补充 `msg_*` 辅助函数；两端分别处理收发。教师端 UI 通常在 `DashboardView.vue` 的.dropdown-menu 中增加操作入口。
 - **新增网络模式**：修改 `FilterMode`，同步更新 `student-backend/app/services/network_filter.py` 与教师端前端 UI。
 - **修改默认端口**：除代码外，注意更新根目录 `README.md`、本文件、教师端 `app/core/config.py` 与学生端默认配置。
 - **数据库变更**：在 `teacher-backend/app/db/init.py` 的 `INIT_SQL` 中维护 schema 版本，当前无迁移工具，需手动处理。

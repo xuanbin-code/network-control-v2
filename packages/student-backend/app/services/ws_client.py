@@ -19,6 +19,8 @@ from shared.protocol import (
     msg_browsing_update, parse_msg, extract_payload,
 )
 
+from app.services.black_screen import start_black_screen, stop_black_screen
+
 from app.core.config import CONFIG
 from app.core.state import state
 from app.services.tray_icon import current_tray
@@ -229,6 +231,25 @@ class StudentWebSocketClient:
             state.last_test_message = content
             state.last_test_message_ts = time.time()
             logger.info(f"收到测试消息: {content}")
+
+        elif msg_type == MsgType.BLACK_SCREEN:
+            countdown = payload.get("countdown_seconds", 30)
+            logger.info(f"收到黑屏指令，倒计时: {countdown} 秒")
+            try:
+                result = start_black_screen(countdown)
+                await self.send(msg_ack(True, f"Black screen started: {result['countdown_seconds']}s"))
+            except Exception as e:
+                logger.error(f"启动黑屏失败: {e}")
+                await self.send(msg_ack(False, f"Black screen failed: {e}"))
+
+        elif msg_type == MsgType.BLACK_SCREEN_UNLOCK:
+            logger.info("收到解除黑屏指令")
+            try:
+                ok = stop_black_screen()
+                await self.send(msg_ack(ok, "Black screen unlock command sent"))
+            except Exception as e:
+                logger.error(f"解除黑屏失败: {e}")
+                await self.send(msg_ack(False, f"Black screen unlock failed: {e}"))
 
     async def _apply_mode(self, mode: str):
         from app.services.network_filter import apply_filter_mode

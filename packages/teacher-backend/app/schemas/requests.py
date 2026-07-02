@@ -22,3 +22,12 @@ class SettingUpdateRequest(BaseModel):
 class TestMessageRequest(BaseModel):
     message: str
     targets: Optional[List[str]] = None
+
+
+class BlackScreenRequest(BaseModel):
+    countdown_seconds: int = 30
+    targets: Optional[List[str]] = None
+
+
+class BlackScreenUnlockRequest(BaseModel):
+    targets: Optional[List[str]] = None

@@ -48,3 +48,8 @@ packages/student-backend/gw_backup.json
 # PyInstaller
 *.manifest
 *.spec
+
+# Environment variables (keep .env.example / .env.development tracked)
+.env
+.env.local
+.env.*.local

@@ -141,11 +141,27 @@ network-control-v2/
 端口可通过环境变量覆盖：
 
 - 教师端：`NC_WS_PORT`、`NC_API_PORT`、`NC_LOCAL_API_PORT`、`NC_WS_HOST`、`NC_API_HOST`。
-- 学生端：修改 `config.json` 的 `local_api_port` 或通过 `/api/config` 接口修改。
+- 学生端：支持 `NC_CONTROLLER_URL`、`NC_CONTROLLER_API_URL`、`NC_LOCAL_API_HOST`、`NC_LOCAL_API_PORT`、`NC_UPSTREAM_DNS`、`NC_LAN_SUBNETS`、`NC_TRAY_VISIBLE`、`NC_TRAY_PASSWORD_HASH`、`NC_UNLOCK_PASSWORD_HASH`，可在 `.env` 或 `.env.development` 中配置。
 
 ### 4.2 学生端配置
 
-首次运行会自动生成 `packages/student-backend/config.json`，默认值见 `app/core/config.py`：
+配置优先级：`config.json` > 环境变量（`.env` / `.env.development`）> `DEFAULT_CONFIG` 默认值。
+
+首次运行会自动生成 `packages/student-backend/config.json`，默认值见 `app/core/config.py`。开发环境下推荐直接修改 `packages/student-backend/.env.development`，无需改动 `config.json`：
+
+```env
+NC_CONTROLLER_URL=ws://127.0.0.1:8765/ws
+NC_CONTROLLER_API_URL=http://127.0.0.1:8770
+NC_LOCAL_API_HOST=127.0.0.1
+NC_LOCAL_API_PORT=8772
+NC_UPSTREAM_DNS=114.114.114.114
+NC_LAN_SUBNETS=["192.168.1.0/24"]
+NC_TRAY_VISIBLE=true
+```
+
+> 若需本地自定义（含密码等敏感信息），可复制 `.env.example` 为 `.env`，`.env` 已被 `.gitignore` 忽略，不会进入版本控制。
+
+生产环境仍使用 `config.json`：
 
 ```json
 {

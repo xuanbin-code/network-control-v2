@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE = 'http://127.0.0.1:8772/api'
+const BASE = import.meta.env.VITE_STUDENT_API_BASE || 'http://127.0.0.1:8772/api'
 
 const instance = axios.create({
   baseURL: BASE,

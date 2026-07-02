@@ -1,4 +1,10 @@
-"""学生端后端配置"""
+"""学生端后端配置
+
+配置优先级（从高到低）：
+1. 已存在的 config.json
+2. 环境变量（推荐开发环境使用 .env.development）
+3. DEFAULT_CONFIG 默认值
+"""
 
 import hashlib
 import json
@@ -6,10 +12,20 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys.executable).parent
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# 开发环境下从项目根目录加载 .env / .env.development
+_ENV_PATH = BASE_DIR / ".env"
+_ENV_DEV_PATH = BASE_DIR / ".env.development"
+if _ENV_PATH.exists():
+    load_dotenv(_ENV_PATH, override=True)
+elif _ENV_DEV_PATH.exists():
+    load_dotenv(_ENV_DEV_PATH, override=True)
 
 CONFIG_PATH = BASE_DIR / "config.json"
 
@@ -27,17 +43,51 @@ DEFAULT_CONFIG = {
 }
 
 
+def _apply_env_overrides(cfg: dict) -> dict:
+    """用环境变量覆盖配置，支持 JSON 列表/对象。"""
+    env_map = {
+        "NC_CONTROLLER_URL": "controller_url",
+        "NC_CONTROLLER_API_URL": "controller_api_url",
+        "NC_LOCAL_API_HOST": "local_api_host",
+        "NC_LOCAL_API_PORT": "local_api_port",
+        "NC_UPSTREAM_DNS": "upstream_dns",
+        "NC_LAN_SUBNETS": "lan_subnets",
+        "NC_TRAY_VISIBLE": "tray_visible",
+        "NC_TRAY_PASSWORD_HASH": "tray_password_hash",
+        "NC_UNLOCK_PASSWORD_HASH": "unlock_password_hash",
+    }
+    for env_key, cfg_key in env_map.items():
+        value = os.environ.get(env_key)
+        if value is None:
+            continue
+        if cfg_key == "local_api_port":
+            try:
+                value = int(value)
+            except ValueError:
+                continue
+        elif cfg_key == "tray_visible":
+            value = value.lower() in ("1", "true", "yes", "on")
+        elif cfg_key == "lan_subnets":
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                continue
+        cfg[cfg_key] = value
+    return cfg
+
+
 def load_config() -> dict:
+    merged = DEFAULT_CONFIG.copy()
     if CONFIG_PATH.exists():
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            merged = DEFAULT_CONFIG.copy()
             merged.update(cfg)
-            return merged
         except Exception as e:
             print(f"[Config] 读取配置失败: {e}, 使用默认配置")
-    return DEFAULT_CONFIG.copy()
+    # 环境变量优先级高于 config.json，便于开发环境配置
+    _apply_env_overrides(merged)
+    return merged
 
 
 def save_config(cfg: dict):
